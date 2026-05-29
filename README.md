@@ -120,9 +120,3 @@ La aplicación usa Neon.tech (PostgreSQL serverless). La tabla principal de usua
 | CoinIn | 📋 Pendiente |
 | Gestión de usuarios | 📋 Pendiente |
 
-## Seguridad
-
-- Las contraseñas se almacenan como hash `pbkdf2:sha256:600000` (Werkzeug).
-- El archivo `.env` **nunca** se sube al repositorio (está en `.gitignore`).
-- Las sesiones usan `SECRET_KEY` configurada en `.env`.
-- Todas las rutas excepto `/login` requieren sesión activa.
