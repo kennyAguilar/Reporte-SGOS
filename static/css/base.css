@@ -62,6 +62,88 @@
   background: var(--layer-03);
 }
 
+.btn-secondary[disabled],
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-secondary[disabled]:hover,
+.btn-secondary:disabled:hover {
+  background: var(--layer-02);
+}
+
+/* Botón primario (oro) */
+.btn-primary {
+  height: 32px;
+  padding: 0 14px;
+  background: var(--gold);
+  color: var(--background);
+  border: 1px solid var(--gold);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--gold-hover);
+  border-color: var(--gold-hover);
+}
+
+.btn-primary:active {
+  background: var(--gold-active);
+  border-color: var(--gold-active);
+}
+
+.btn-outline {
+  height: 32px;
+  padding: 0 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--layer-03);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.btn-outline:hover {
+  border-color: var(--text-helper);
+  color: var(--text-primary);
+}
+
+/* Navegación por pestañas */
+.app-nav {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  height: 48px;
+  overflow-x: auto;
+}
+
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.app-nav a:hover {
+  color: var(--text-primary);
+}
+
+.app-nav a.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--gold);
+}
+
 .app-content {
   padding: 32px;
 }

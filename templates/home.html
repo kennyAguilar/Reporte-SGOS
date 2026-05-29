@@ -4,6 +4,7 @@
 
 {% block styles %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -13,13 +14,204 @@
     <small>Mesa Operativa</small>
     <strong>SGOS Reportes</strong>
   </div>
+
+  <nav class="app-nav">
+    <a href="{{ url_for('home.index') }}" class="active">Resumen</a>
+    <a href="#">Getnet</a>
+    <a href="#">Premios</a>
+    <a href="#">Comps</a>
+    <a href="#">Análisis general</a>
+    <a href="#">Control</a>
+    <a href="#">CoinIn Cero</a>
+  </nav>
+
   <div class="spacer"></div>
+
+  <button type="button" class="btn-secondary" id="btn-toggle-filtros"
+          aria-controls="dashboard-layout" aria-expanded="true">Filtros</button>
+  <button type="button" class="btn-secondary" disabled title="Próximamente">Cargar Excel</button>
+  <button type="button" class="btn-secondary" disabled title="Próximamente">Exportar a Excel</button>
   <span class="user-chip">{{ user.username }}</span>
   <a class="btn-secondary" href="{{ url_for('auth.logout') }}">Salir</a>
 </header>
 
-<main class="app-content">
-  <h1>Resumen</h1>
-  <p>Bienvenido, {{ user.username }}.</p>
-</main>
+<div class="dashboard-layout" id="dashboard-layout">
+  <!-- Panel de filtros retráctil -->
+  <aside class="filters-panel" id="filters-panel">
+    <form method="get" action="{{ url_for('home.index') }}" id="filters-form">
+      <h2>Filtros</h2>
+
+      <div class="field">
+        <label for="f-anio">Año</label>
+        <select name="anio" id="f-anio">
+          <option value="">Todos</option>
+          {% for a in anios %}
+            <option value="{{ a }}" {{ 'selected' if filtros.anio == a|string else '' }}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="f-mes">Mes</label>
+        <select name="mes" id="f-mes">
+          <option value="">Todos</option>
+          {% for num, nom in meses %}
+            <option value="{{ num }}" {{ 'selected' if filtros.mes == num|string else '' }}>{{ nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="f-nombre">Nombre</label>
+        <input type="text" name="nombre" id="f-nombre"
+               value="{{ filtros.nombre }}" placeholder="Slot attendant / cliente">
+      </div>
+
+      <div class="filters-actions">
+        <button type="submit" class="btn-primary">Aplicar</button>
+        <button type="button" class="btn-outline" id="btn-todos">Todos</button>
+      </div>
+      <div class="filters-actions">
+        <button type="button" class="btn-outline" id="btn-ninguno">Ninguno</button>
+      </div>
+
+      <div class="filters-section">
+        <h3>Vista</h3>
+        <div class="switch-row">
+          <span>Filas totales</span>
+          <label class="switch">
+            <input type="checkbox" name="filas_totales"
+                   {{ 'checked' if filtros.filas_totales else '' }}>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="filters-section">
+        <h3>Último archivo</h3>
+        {% if ultimo_archivo %}
+          <div class="last-file-card">
+            <div class="label">Archivo</div>
+            <div class="name">{{ ultimo_archivo.archivo }}</div>
+            <div class="date">{{ ultimo_archivo.fecha }}</div>
+          </div>
+        {% else %}
+          <div class="last-file-card">
+            <div class="label">Archivo</div>
+            <div class="name">Sin cargas registradas</div>
+          </div>
+        {% endif %}
+      </div>
+    </form>
+  </aside>
+
+  <!-- Contenido principal -->
+  <main class="dashboard-main">
+    <!-- Getnet -->
+    <section class="module-block">
+      <div class="module-head">
+        <div class="module-eyebrow">Getnet</div>
+        <h2>Estado de carga</h2>
+      </div>
+      {% if getnet %}
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Mes cargado</div>
+            <div class="kpi-value">{{ getnet.mes_cargado }}</div>
+            <div class="kpi-sub">{{ getnet.fecha_carga }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Hasta jornada</div>
+            <div class="kpi-value">{{ getnet.hasta_jornada }}</div>
+            <div class="kpi-sub">Última jornada registrada</div>
+          </div>
+          <div class="kpi-card kpi-card--accent">
+            <div class="kpi-label">Monto total del mes</div>
+            <div class="kpi-value financiero">{{ getnet.total_valor }}</div>
+            <div class="kpi-sub">{{ getnet.total_label }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Última jornada</div>
+            <div class="kpi-value financiero">{{ getnet.ultima_valor }}</div>
+            <div class="kpi-sub">{{ getnet.ultima_label }}</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">No hay carga registrada para este módulo.</div>
+      {% endif %}
+    </section>
+
+    <!-- Premios -->
+    <section class="module-block">
+      <div class="module-head">
+        <div class="module-eyebrow">Premios</div>
+        <h2>Estado de carga</h2>
+      </div>
+      {% if premios %}
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Mes cargado</div>
+            <div class="kpi-value">{{ premios.mes_cargado }}</div>
+            <div class="kpi-sub">{{ premios.fecha_carga }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Hasta jornada</div>
+            <div class="kpi-value">{{ premios.hasta_jornada }}</div>
+            <div class="kpi-sub">Última jornada registrada</div>
+          </div>
+          <div class="kpi-card kpi-card--accent">
+            <div class="kpi-label">Monto total del mes</div>
+            <div class="kpi-value financiero">{{ premios.total_valor }}</div>
+            <div class="kpi-sub">{{ premios.total_label }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Última jornada</div>
+            <div class="kpi-value financiero">{{ premios.ultima_valor }}</div>
+            <div class="kpi-sub">{{ premios.ultima_label }}</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">No hay carga registrada para este módulo.</div>
+      {% endif %}
+    </section>
+
+    <!-- COMPS -->
+    <section class="module-block">
+      <div class="module-head">
+        <div class="module-eyebrow">Comps</div>
+        <h2>Estado de carga</h2>
+      </div>
+      {% if comps %}
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Mes cargado</div>
+            <div class="kpi-value">{{ comps.mes_cargado }}</div>
+            <div class="kpi-sub">{{ comps.fecha_carga }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Hasta jornada</div>
+            <div class="kpi-value">{{ comps.hasta_jornada }}</div>
+            <div class="kpi-sub">Última jornada registrada</div>
+          </div>
+          <div class="kpi-card kpi-card--accent">
+            <div class="kpi-label">{{ comps.total_label_titulo }}</div>
+            <div class="kpi-value financiero">{{ comps.total_valor }}</div>
+            <div class="kpi-sub">{{ comps.total_label }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Última jornada</div>
+            <div class="kpi-value financiero">{{ comps.ultima_valor }}</div>
+            <div class="kpi-sub">{{ comps.ultima_label }}</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">No hay carga registrada para este módulo.</div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
 {% endblock %}

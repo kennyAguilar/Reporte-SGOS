@@ -1,0 +1,282 @@
+/* SGOS — Dashboard Home / Resumen (DESIGN.md §8) */
+
+/* Layout: panel de filtros (izq) + contenido (der) */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 0;
+  align-items: start;
+}
+
+.dashboard-layout.filters-collapsed {
+  grid-template-columns: 0 1fr;
+}
+
+/* Panel de filtros retráctil */
+.filters-panel {
+  background: var(--layer-01);
+  border-right: 1px solid var(--layer-02);
+  padding: 24px 20px;
+  min-height: calc(100vh - 48px);
+  overflow: hidden;
+  transition: padding 0.15s ease;
+}
+
+.dashboard-layout.filters-collapsed .filters-panel {
+  padding: 24px 0;
+  border-right: none;
+}
+
+.dashboard-layout.filters-collapsed .filters-panel * {
+  display: none;
+}
+
+.filters-panel h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-helper);
+  margin: 0 0 16px;
+}
+
+.filters-panel .field {
+  margin-bottom: 16px;
+}
+
+.filters-panel label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.filters-panel select,
+.filters-panel input[type="text"] {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  background: var(--layer-02);
+  color: var(--text-primary);
+  border: 1px solid var(--layer-03);
+  border-bottom: 1px solid var(--text-helper);
+  font-size: 13px;
+}
+
+.filters-panel select:focus,
+.filters-panel input[type="text"]:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+.filters-actions {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.filters-actions .btn-primary,
+.filters-actions .btn-outline {
+  flex: 1;
+  justify-content: center;
+}
+
+.filters-section {
+  border-top: 1px solid var(--layer-02);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.filters-section h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-helper);
+  margin: 0 0 12px;
+}
+
+/* Switch (Filas totales) */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch .slider {
+  position: absolute;
+  inset: 0;
+  background: var(--layer-03);
+  border-radius: 10px;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.switch .slider::before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 3px;
+  top: 3px;
+  background: var(--text-primary);
+  border-radius: 50%;
+  transition: transform 0.15s;
+}
+
+.switch input:checked + .slider {
+  background: var(--gold);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(20px);
+}
+
+/* Tarjeta de último archivo */
+.last-file-card {
+  background: var(--layer-02);
+  border: 1px solid var(--layer-03);
+  padding: 12px;
+  font-size: 12px;
+}
+
+.last-file-card .label {
+  color: var(--text-helper);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.last-file-card .name {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.last-file-card .date {
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Contenido principal */
+.dashboard-main {
+  padding: 24px 32px;
+  min-width: 0;
+}
+
+.module-block {
+  margin-bottom: 32px;
+}
+
+.module-head {
+  margin: 0 0 14px;
+}
+
+.module-head .module-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-helper);
+  margin-bottom: 2px;
+}
+
+.module-head h2 {
+  font-size: 18px;
+  font-weight: 400;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* Grilla de KPI cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.kpi-card {
+  background: var(--layer-01);
+  border: 1px solid var(--layer-02);
+  padding: 16px;
+}
+
+.kpi-card--accent {
+  border-left: 3px solid var(--gold);
+}
+
+.kpi-card .kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-helper);
+  margin-bottom: 10px;
+}
+
+.kpi-card .kpi-value {
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.15;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.01em;
+}
+
+.kpi-card .kpi-value.financiero {
+  color: var(--gold);
+}
+
+.kpi-card .kpi-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+/* Estado vacío */
+.empty-state {
+  background: var(--layer-01);
+  border: 1px dashed var(--layer-03);
+  padding: 32px;
+  text-align: center;
+  color: var(--text-helper);
+  font-size: 14px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .dashboard-layout,
+  .dashboard-layout.filters-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .filters-panel {
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--layer-02);
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
