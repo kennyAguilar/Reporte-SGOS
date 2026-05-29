@@ -1,0 +1,73 @@
+/* SGOS — Estilos base y header (DESIGN.md §7) */
+.app-header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  background: var(--layer-01);
+  border-bottom: 1px solid var(--layer-02);
+}
+
+.app-header .brand-logo {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold);
+  color: var(--background);
+  font-weight: 600;
+  border-radius: 2px;
+}
+
+.app-header .brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.app-header .brand-text small {
+  color: var(--text-helper);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-header .spacer {
+  flex: 1;
+}
+
+.app-header .user-chip {
+  padding: 6px 12px;
+  background: var(--layer-02);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.btn-secondary {
+  height: 32px;
+  padding: 0 12px;
+  background: var(--layer-02);
+  color: var(--text-primary);
+  border: 1px solid var(--layer-03);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+}
+
+.btn-secondary:hover {
+  background: var(--layer-03);
+}
+
+.app-content {
+  padding: 32px;
+}
+
+.app-content h1 {
+  font-size: 20px;
+  font-weight: 400;
+  margin: 0 0 16px;
+}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar sesión — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="login-page">
+  <section class="login-hero">
+    <div class="hero-brand">
+      <div class="hero-logo">S</div>
+      <div>
+        <div class="hero-eyebrow">SGOS · Reportes de Operaciones</div>
+      </div>
+    </div>
+
+    <div>
+      <h1>Sistema de Gestión de Operaciones</h1>
+      <p>
+        Procesa, analiza y visualiza reportes de operaciones desde archivos
+        Excel con dashboards en tiempo real.
+      </p>
+    </div>
+
+    <div class="hero-modules">
+      <div class="hero-module">
+        <strong>Cargas</strong>
+        <span>Importa reportes Excel de operaciones</span>
+      </div>
+      <div class="hero-module">
+        <strong>Reportes</strong>
+        <span>Dashboards y KPIs por turno y mesa</span>
+      </div>
+      <div class="hero-module">
+        <strong>Usuarios</strong>
+        <span>Control de accesos y roles del sistema</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="login-panel">
+    <form class="login-form" method="post" action="{{ url_for('auth.login') }}">
+      <h2>Iniciar sesión</h2>
+      <p class="form-helper">Accede con tu cuenta autorizada</p>
+
+      {% if error %}
+      <div class="login-error" role="alert">{{ error }}</div>
+      {% endif %}
+
+      <div class="field">
+        <label for="username">Usuario</label>
+        <input
+          type="text"
+          id="username"
+          name="username"
+          placeholder="nombre.usuario"
+          autocomplete="username"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label for="password">Contraseña</label>
+        <div class="field-password">
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          >
+          <button
+            type="button"
+            class="toggle-password"
+            id="togglePassword"
+            aria-label="Mostrar contraseña"
+            aria-pressed="false"
+            title="Mostrar contraseña"
+          >
+            <svg class="icon-eye" width="20" height="20" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+              <path d="M30.94 15.66A16.69 16.69 0 0 0 16 5 16.69 16.69 0 0 0 1.06 15.66a1 1 0 0 0 0 .68A16.69 16.69 0 0 0 16 27a16.69 16.69 0 0 0 14.94-10.66 1 1 0 0 0 0-.68ZM16 25c-5.3 0-10.9-3.93-12.93-9C5.1 10.93 10.7 7 16 7s10.9 3.93 12.93 9C26.9 21.07 21.3 25 16 25Z"/>
+              <path d="M16 10a6 6 0 1 0 6 6 6 6 0 0 0-6-6Zm0 10a4 4 0 1 1 4-4 4 4 0 0 1-4 4Z"/>
+            </svg>
+            <svg class="icon-eye-off" width="20" height="20" viewBox="0 0 32 32" fill="currentColor" aria-hidden="true">
+              <path d="m5.24 22.51 1.43-1.42A14.06 14.06 0 0 1 3.07 16C5.1 10.93 10.7 7 16 7a12.38 12.38 0 0 1 4 .69l1.55-1.56A14.72 14.72 0 0 0 16 5 16.69 16.69 0 0 0 1.06 15.66a1 1 0 0 0 0 .68 16 16 0 0 0 4.18 6.17ZM16 25c5.3 0 10.9-3.93 12.93-9a14.09 14.09 0 0 0-3.6-5.09l-1.43 1.42A12.06 12.06 0 0 1 28.93 16C26.9 21.07 21.3 25 16 25a12.49 12.49 0 0 1-4-.69l-1.55 1.56A14.72 14.72 0 0 0 16 25Z"/>
+              <path d="M22 16a6 6 0 0 1-8.62 5.39l1.5-1.5A4 4 0 0 0 20 16ZM12 16a4 4 0 0 1 6.12-3.39l1.5-1.5A6 6 0 0 0 10 16ZM30 3.41 28.59 2 2 28.59 3.41 30Z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="login-submit">Ingresar</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}

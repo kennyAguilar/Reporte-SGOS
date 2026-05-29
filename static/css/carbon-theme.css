@@ -1,0 +1,42 @@
+/* SGOS — Tokens de color Carbon Gray 100 (DESIGN.md §2) */
+:root {
+  /* Superficies */
+  --background: #161616;
+  --layer-01: #262626;
+  --layer-02: #393939;
+  --layer-03: #525252;
+
+  /* Texto */
+  --text-primary: #f4f4f4;
+  --text-secondary: #c6c6c6;
+  --text-helper: #8d8d8d;
+  --text-error: #ffb3b8;
+
+  /* Acentos */
+  --gold: #d4af37;
+  --gold-hover: #e0bd48;
+  --gold-active: #b8922d;
+
+  /* Estados */
+  --support-success: #24a148;
+  --support-error: #da1e28;
+  --support-warning: #f1c21b;
+  --support-info: #0043ce;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  background: var(--background);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}

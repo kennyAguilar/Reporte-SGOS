@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Resumen — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+{% endblock %}
+
+{% block body %}
+<header class="app-header">
+  <div class="brand-logo">S</div>
+  <div class="brand-text">
+    <small>Mesa Operativa</small>
+    <strong>SGOS Reportes</strong>
+  </div>
+  <div class="spacer"></div>
+  <span class="user-chip">{{ user.username }}</span>
+  <a class="btn-secondary" href="{{ url_for('auth.logout') }}">Salir</a>
+</header>
+
+<main class="app-content">
+  <h1>Resumen</h1>
+  <p>Bienvenido, {{ user.username }}.</p>
+</main>
+{% endblock %}

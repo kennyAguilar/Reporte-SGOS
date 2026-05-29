@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Página no encontrada — SGOS{% endblock %}
+
+{% block body %}
+<main style="padding: 48px; text-align: center;">
+  <h1 style="font-size: 48px; color: var(--gold); margin: 0;">404</h1>
+  <p style="color: var(--text-secondary);">La página solicitada no existe.</p>
+  <a class="login-submit" style="display:inline-block; width:auto; padding:0 24px; line-height:48px; text-decoration:none;" href="{{ url_for('home.index') }}">Volver al inicio</a>
+</main>
+{% endblock %}

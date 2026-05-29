@@ -1,0 +1,228 @@
+/* SGOS — Login (DESIGN.md §6) */
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 560px;
+  background: var(--background);
+  color: var(--text-primary);
+}
+
+.login-hero {
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.login-hero .hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-hero .hero-logo {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gold);
+  color: var(--background);
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.login-hero .hero-eyebrow {
+  color: var(--text-helper);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+}
+
+.login-hero h1 {
+  font-size: 40px;
+  font-weight: 300;
+  margin: 24px 0 16px;
+  max-width: 560px;
+}
+
+.login-hero p {
+  color: var(--text-secondary);
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.hero-modules {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hero-module {
+  flex: 1;
+  min-width: 180px;
+  padding: 20px;
+  background: var(--layer-01);
+  border: 1px solid var(--layer-02);
+}
+
+.hero-module strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.hero-module span {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.login-panel {
+  background: var(--layer-01);
+  border-left: 1px solid var(--layer-02);
+  padding: 0 80px;
+  display: flex;
+  align-items: center;
+}
+
+.login-form {
+  width: 100%;
+}
+
+.login-form h2 {
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0 0 4px;
+}
+
+.login-form .form-helper {
+  color: var(--text-secondary);
+  margin: 0 0 32px;
+}
+
+.field {
+  margin-bottom: 20px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  background: var(--layer-02);
+  border: none;
+  border-bottom: 1px solid var(--layer-03);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.field input:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+.field-password {
+  position: relative;
+}
+
+.field-password input {
+  padding-right: 52px;
+}
+
+.toggle-password {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 48px;
+  width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.toggle-password:hover {
+  color: var(--text-primary);
+}
+
+.toggle-password:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+.toggle-password .icon-eye-off {
+  display: none;
+}
+
+.toggle-password.show-password .icon-eye {
+  display: none;
+}
+
+.toggle-password.show-password .icon-eye-off {
+  display: block;
+}
+
+.login-error {
+  background: rgba(218, 30, 40, 0.15);
+  border-left: 3px solid var(--support-error);
+  color: var(--text-error);
+  padding: 12px 16px;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.login-submit {
+  width: 100%;
+  height: 48px;
+  border: none;
+  background: var(--gold);
+  color: var(--background);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.login-submit:hover {
+  background: var(--gold-hover);
+}
+
+.login-submit:active {
+  background: var(--gold-active);
+}
+
+.login-submit:disabled {
+  background: var(--layer-03);
+  color: var(--text-helper);
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .login-panel {
+    border-left: none;
+    border-top: 1px solid var(--layer-02);
+    padding: 32px 24px;
+  }
+
+  .login-hero {
+    padding: 32px 24px;
+  }
+
+  .login-hero h1 {
+    font-size: 28px;
+  }
+}

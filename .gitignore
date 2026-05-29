@@ -1,0 +1,14 @@
+# Entornos y dependencias Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Variables de entorno reales
+.env
+
+# Cargas temporales
+uploads/
+
+# IDE
+.vscode/
