@@ -247,6 +247,77 @@
   margin-top: 8px;
 }
 
+/* Filas de métricas secundarias dentro de una tarjeta KPI */
+.kpi-card .kpi-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.kpi-card .kpi-extra span {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-feature-settings: "tnum";
+}
+
+.kpi-card .kpi-extra em {
+  font-style: normal;
+  color: var(--text-helper);
+}
+
+/* Tarjeta con donut de formas de pago */
+.kpi-card--donut .donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chart-box--mini {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex: 0 0 96px;
+}
+
+.chart-box--mini canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.donut-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.donut-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.donut-legend .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 10px;
+}
+
+.donut-legend strong {
+  color: var(--text-primary);
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+}
+
 /* Estado vacío */
 .empty-state {
   background: var(--layer-01);

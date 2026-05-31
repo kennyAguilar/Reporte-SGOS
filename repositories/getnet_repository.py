@@ -184,6 +184,102 @@ def _where(anio=None, mes=None, nombre=None):
     return where, params
 
 
+# Colores de las formas de pago para el donut (consistentes con DESIGN.md).
+_COLORES_FORMA = ["#d4af37", "#24a148", "#78a9ff", "#ff832b", "#be95ff", "#08bdba"]
+
+
+def get_kpis_dashboard(anio=None, mes=None, nombre=None):
+    """KPIs resumidos para las tarjetas del dashboard.
+
+    Devuelve un dict con:
+        - total_ops, dias, promedio_ops
+        - monto_total, ticket
+        - hora_pico ("HH:00"), ops_pico_prom
+        - formas: [{"label", "ops", "monto", "pct", "color"}, ...] para el donut
+    o None si no hay datos en el filtro. Los promedios usan la cantidad de
+    jornadas únicas (días contados) como divisor.
+    """
+    where, params = _where(anio, mes, nombre)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT COUNT(*)                AS total_ops,
+                       COUNT(DISTINCT jornada) AS dias,
+                       SUM(monto)              AS monto_total
+                FROM {TABLE}
+                {where}
+                """,
+                params,
+            )
+            base = cur.fetchone() or {}
+            total_ops = int(base.get("total_ops") or 0)
+            dias = int(base.get("dias") or 0)
+            if not total_ops or not dias:
+                return None
+            monto_total = int(base.get("monto_total") or 0)
+
+            # Hora pico: la hora con más operaciones (la hora sale de `fecha`).
+            cur.execute(
+                f"""
+                SELECT EXTRACT(HOUR FROM fecha)::int AS hora,
+                       COUNT(*)                        AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY 1
+                ORDER BY ops DESC
+                LIMIT 1
+                """,
+                params,
+            )
+            pico = cur.fetchone() or {}
+
+            # Distribución por forma de pago (para el donut).
+            cur.execute(
+                f"""
+                SELECT COALESCE(NULLIF(TRIM(forma_pago), ''), 'Sin especificar') AS forma,
+                       COUNT(*)   AS ops,
+                       SUM(monto) AS monto
+                FROM {TABLE}
+                {where}
+                GROUP BY 1
+                ORDER BY ops DESC
+                """,
+                params,
+            )
+            filas_forma = cur.fetchall()
+    finally:
+        conn.close()
+
+    ops_pico = int(pico.get("ops") or 0)
+    hora_pico = pico.get("hora")
+
+    formas = []
+    for i, f in enumerate(filas_forma):
+        ops = int(f["ops"])
+        formas.append(
+            {
+                "label": f["forma"],
+                "ops": ops,
+                "monto": int(f["monto"] or 0),
+                "pct": round(ops * 100 / total_ops, 1),
+                "color": _COLORES_FORMA[i % len(_COLORES_FORMA)],
+            }
+        )
+
+    return {
+        "total_ops": miles(total_ops),
+        "dias": miles(dias),
+        "promedio_ops": miles(round(total_ops / dias)),
+        "monto_total": pesos(monto_total),
+        "ticket": pesos(round(monto_total / total_ops)),
+        "hora_pico": f"{hora_pico:02d}:00" if hora_pico is not None else "—",
+        "ops_pico_prom": miles(round(ops_pico / dias)),
+        "formas": formas,
+    }
+
+
 def get_operaciones_por_mes(anio=None, mes=None, nombre=None):
     """Cantidad de operaciones agrupadas por mes de la jornada.
 

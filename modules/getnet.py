@@ -61,18 +61,19 @@ def dashboard():
     anio, mes, nombre, filtros, anios = _contexto_filtros()
 
     resumen = _safe(getnet_repository.get_resumen, anio, mes, nombre)
+    kpis = _safe(getnet_repository.get_kpis_dashboard, anio, mes, nombre)
     ops_mes = _safe(getnet_repository.get_operaciones_por_mes, anio, mes, nombre)
     montos_mes = _safe(getnet_repository.get_montos_por_mes, anio, mes, nombre)
     promedio_hora = _safe(getnet_repository.get_promedio_por_hora, anio, mes, nombre)
     heatmap = _safe(getnet_repository.get_heatmap_dia_hora, anio, mes, nombre)
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
-
     return render_template(
         "getnet/dashboard.html",
         user=current_user(),
         active="getnet",
         seccion="dashboard",
         resumen=resumen,
+        kpis=kpis,
         ops_mes=ops_mes,
         montos_mes=montos_mes,
         promedio_hora=promedio_hora,

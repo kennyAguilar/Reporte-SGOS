@@ -102,9 +102,47 @@
     });
   }
 
+  // Donut (arandela) de distribución por forma de pago.
+  function crearDonut(id, formas) {
+    const el = document.getElementById(id);
+    if (!el || !formas || !formas.length) return;
+    const previo = Chart.getChart(el);
+    if (previo) previo.destroy();
+    new Chart(el, {
+      type: "doughnut",
+      data: {
+        labels: formas.map((f) => f.label),
+        datasets: [
+          {
+            data: formas.map((f) => f.ops),
+            backgroundColor: formas.map((f) => f.color),
+            borderColor: "#161616",
+            borderWidth: 2,
+            hoverOffset: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "62%",
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const f = formas[ctx.dataIndex];
+                return `${f.label}: ${f.ops.toLocaleString("es-CL")} ops (${f.pct}%) · ${pesos(f.monto)}`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   // --- Operaciones por Mes (barras oro) ---
-  if (datos.ops_mes) {
-    crearBarras(
+  if (datos.ops_mes) {    crearBarras(
       "chart-ops-mes",
       datos.ops_mes.labels,
       datos.ops_mes.valores,
@@ -144,6 +182,11 @@
       "Promedio Monto ($)",
       pesos
     );
+  }
+
+  // --- Donut por forma de pago (débito / crédito) ---
+  if (datos.formas) {
+    crearDonut("chart-formas", datos.formas);
   }
 
   // --- Escala de color del mapa de calor ---

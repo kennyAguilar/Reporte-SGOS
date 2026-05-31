@@ -32,28 +32,48 @@
       <h2>Dashboard</h2>
     </div>
 
-    {# KPIs rápidos (reutilizan get_resumen) #}
-    {% if resumen %}
+    {# KPIs rápidos #}
+    {% if kpis %}
       <div class="kpi-grid">
         <div class="kpi-card">
-          <div class="kpi-label">Mes cargado</div>
-          <div class="kpi-value">{{ resumen.mes_cargado }}</div>
-          <div class="kpi-sub">{{ resumen.fecha_carga }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Hasta jornada</div>
-          <div class="kpi-value">{{ resumen.hasta_jornada }}</div>
-          <div class="kpi-sub">Última jornada registrada</div>
+          <div class="kpi-label">Operaciones</div>
+          <div class="kpi-value">{{ kpis.total_ops }}</div>
+          <div class="kpi-extra">
+            <span><em>Días contados</em> {{ kpis.dias }}</span>
+            <span><em>Promedio x día</em> {{ kpis.promedio_ops }}</span>
+          </div>
         </div>
         <div class="kpi-card kpi-card--accent">
-          <div class="kpi-label">Monto total acumulado</div>
-          <div class="kpi-value financiero">{{ resumen.total_valor }}</div>
-          <div class="kpi-sub">{{ resumen.total_label }}</div>
+          <div class="kpi-label">Monto total</div>
+          <div class="kpi-value financiero">{{ kpis.monto_total }}</div>
+          <div class="kpi-extra">
+            <span><em>Ticket promedio</em> {{ kpis.ticket }}</span>
+          </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Última jornada</div>
-          <div class="kpi-value financiero">{{ resumen.ultima_valor }}</div>
-          <div class="kpi-sub">{{ resumen.ultima_label }}</div>
+          <div class="kpi-label">Hora pico</div>
+          <div class="kpi-value">{{ kpis.hora_pico }}</div>
+          <div class="kpi-extra">
+            <span><em>Operaciones promedio</em> {{ kpis.ops_pico_prom }}</span>
+          </div>
+        </div>
+        <div class="kpi-card kpi-card--donut">
+          <div class="kpi-label">Débito / Crédito</div>
+          {% if kpis.formas %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-formas"></canvas></div>
+              <ul class="donut-legend">
+                {% for f in kpis.formas %}
+                  <li>
+                    <span class="dot" style="background: {{ f.color }}"></span>
+                    {{ f.label }} <strong>{{ f.pct }}%</strong>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
         </div>
       </div>
     {% endif %}
@@ -177,7 +197,8 @@
         {{ {
           "ops_mes": ops_mes,
           "montos_mes": montos_mes,
-          "promedio_hora": promedio_hora
+          "promedio_hora": promedio_hora,
+          "formas": kpis.formas if kpis else None
         } | tojson }}
       </script>
     {% endif %}
