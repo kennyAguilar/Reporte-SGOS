@@ -170,3 +170,39 @@
   border-color: var(--gold);
   color: var(--gold);
 }
+
+/* Jefaturas: fila editable + acciones */
+.config-table td.estado .jefatura-row-form {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.config-table td.estado .jefatura-row-form input {
+  padding: 6px 8px;
+  border: 1px solid var(--layer-02);
+  border-radius: 4px;
+  background: var(--field-01, var(--layer-01));
+  color: var(--text-primary);
+  font-size: 13px;
+  max-width: 150px;
+}
+
+.config-table td.estado .jefatura-row-form input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.btn-danger {
+  padding: 6px 12px;
+  border: 1px solid #fa4d56;
+  border-radius: 4px;
+  background: transparent;
+  color: #fa4d56;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #fa4d56;
+  color: #fff;
+}

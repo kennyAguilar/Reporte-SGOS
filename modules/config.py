@@ -5,6 +5,7 @@ Tres secciones en una sola página con pestañas:
 - Slots activos: activar/desactivar slot attendants para que cuenten (o no) en
   las estadísticas de Getnet.
 - Gestión de usuarios: listar y crear usuarios.
+- Jefaturas: datos maestros (usuario_id, nombre, área) para el módulo COMPS.
 - Cambiar contraseña: restablecer la clave de cualquier usuario.
 
 Toda acción se hace por POST y redirige de vuelta (patrón PRG) con un mensaje
@@ -41,6 +42,8 @@ def index():
     seccion = request.args.get("seccion") or "slots"
     slots = _safe(config_repository.list_slot_attendants) or []
     usuarios = _safe(config_repository.list_users) or []
+    jefaturas = _safe(config_repository.list_jefaturas) or []
+    areas = _safe(config_repository.list_areas) or []
     return render_template(
         "config/index.html",
         user=current_user(),
@@ -48,6 +51,8 @@ def index():
         seccion=seccion,
         slots=slots,
         usuarios=usuarios,
+        jefaturas=jefaturas,
+        areas=areas,
     )
 
 
@@ -111,3 +116,67 @@ def cambiar_password():
         except Exception:
             flash("No se pudo actualizar la contraseña.", "error")
     return redirect(url_for("config.index", seccion="password"))
+
+
+@config_bp.route("/jefaturas", methods=["POST"])
+@admin_required
+def crear_jefatura():
+    """Crea una nueva jefatura."""
+    usuario_id = (request.form.get("usuario_id") or "").strip()
+    nombre = (request.form.get("nombre") or "").strip()
+    area = (request.form.get("area") or "").strip()
+
+    if not usuario_id or not nombre:
+        flash("ID de usuario y nombre son obligatorios.", "error")
+    else:
+        try:
+            creado = config_repository.create_jefatura(usuario_id, nombre, area)
+            if creado:
+                flash(f"Jefatura «{nombre}» creada.", "success")
+            else:
+                flash(f"El ID de usuario «{usuario_id}» ya existe.", "error")
+        except Exception:
+            flash("No se pudo crear la jefatura.", "error")
+    return redirect(url_for("config.index", seccion="jefaturas"))
+
+
+@config_bp.route("/jefaturas/editar", methods=["POST"])
+@admin_required
+def editar_jefatura():
+    """Actualiza una jefatura existente."""
+    id = (request.form.get("id") or "").strip()
+    usuario_id = (request.form.get("usuario_id") or "").strip()
+    nombre = (request.form.get("nombre") or "").strip()
+    area = (request.form.get("area") or "").strip()
+
+    if not id or not usuario_id or not nombre:
+        flash("ID de usuario y nombre son obligatorios.", "error")
+    else:
+        try:
+            ok = config_repository.update_jefatura(id, usuario_id, nombre, area)
+            if ok:
+                flash(f"Jefatura «{nombre}» actualizada.", "success")
+            else:
+                flash("No se encontró la jefatura.", "error")
+        except Exception:
+            flash("No se pudo actualizar la jefatura.", "error")
+    return redirect(url_for("config.index", seccion="jefaturas"))
+
+
+@config_bp.route("/jefaturas/eliminar", methods=["POST"])
+@admin_required
+def eliminar_jefatura():
+    """Elimina una jefatura."""
+    id = (request.form.get("id") or "").strip()
+    if not id:
+        flash("Jefatura no válida.", "error")
+    else:
+        try:
+            ok = config_repository.delete_jefatura(id)
+            if ok:
+                flash("Jefatura eliminada.", "success")
+            else:
+                flash("No se encontró la jefatura.", "error")
+        except Exception:
+            flash("No se pudo eliminar la jefatura.", "error")
+    return redirect(url_for("config.index", seccion="jefaturas"))

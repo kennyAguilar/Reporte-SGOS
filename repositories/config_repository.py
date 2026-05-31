@@ -10,6 +10,9 @@ Cubre dos áreas:
      inactivos (ver getnet_repository._inactivos_sql()).
 
 2. Gestión de usuarios: listar, crear y restablecer contraseñas.
+
+3. Jefaturas: datos maestros (usuario_id, nombre, area) que el módulo COMPS
+   usará para cruzar las operaciones con su jefatura. Se administra a mano.
 """
 from werkzeug.security import generate_password_hash
 
@@ -17,7 +20,7 @@ from core.database import get_connection
 
 
 def ensure_schema():
-    """Crea la tabla slot_attendants si no existe (idempotente)."""
+    """Crea las tablas de configuración si no existen (idempotente)."""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -27,6 +30,18 @@ def ensure_schema():
                     nombre     text PRIMARY KEY,
                     activo     boolean     NOT NULL DEFAULT true,
                     updated_at timestamptz NOT NULL DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS jefaturas (
+                    id         serial PRIMARY KEY,
+                    usuario_id varchar(50)  NOT NULL UNIQUE,
+                    nombre     varchar(200) NOT NULL,
+                    area       varchar(100),
+                    created_at timestamptz  NOT NULL DEFAULT now(),
+                    updated_at timestamptz  NOT NULL DEFAULT now()
                 )
                 """
             )
@@ -140,5 +155,97 @@ def reset_password(username, password):
             actualizado = cur.rowcount > 0
         conn.commit()
         return actualizado
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Jefaturas (datos maestros para COMPS)
+# ---------------------------------------------------------------------------
+def list_jefaturas():
+    """Lista todas las jefaturas ordenadas por área y nombre."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, usuario_id, nombre, area
+                FROM jefaturas
+                ORDER BY area NULLS LAST, nombre
+                """
+            )
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def list_areas():
+    """Lista las áreas distintas ya registradas (para sugerencias)."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT area
+                FROM jefaturas
+                WHERE area IS NOT NULL AND TRIM(area) <> ''
+                ORDER BY area
+                """
+            )
+            return [r["area"] for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def create_jefatura(usuario_id, nombre, area=None):
+    """Crea una jefatura. Devuelve True si se creó, False si el usuario_id ya existía."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO jefaturas (usuario_id, nombre, area)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (usuario_id) DO NOTHING
+                RETURNING id
+                """,
+                (usuario_id, nombre, area or None),
+            )
+            creado = cur.fetchone() is not None
+        conn.commit()
+        return creado
+    finally:
+        conn.close()
+
+
+def update_jefatura(id, usuario_id, nombre, area=None):
+    """Actualiza una jefatura existente. Devuelve True si existía."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE jefaturas
+                SET usuario_id = %s, nombre = %s, area = %s, updated_at = now()
+                WHERE id = %s
+                """,
+                (usuario_id, nombre, area or None, id),
+            )
+            actualizado = cur.rowcount > 0
+        conn.commit()
+        return actualizado
+    finally:
+        conn.close()
+
+
+def delete_jefatura(id):
+    """Elimina una jefatura por id. Devuelve True si existía."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM jefaturas WHERE id = %s", (id,))
+            eliminado = cur.rowcount > 0
+        conn.commit()
+        return eliminado
     finally:
         conn.close()

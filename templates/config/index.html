@@ -24,6 +24,8 @@
        class="{{ 'active' if seccion == 'slots' else '' }}">Slots activos</a>
     <a href="{{ url_for('config.index', seccion='usuarios') }}"
        class="{{ 'active' if seccion == 'usuarios' else '' }}">Gestión de usuarios</a>
+    <a href="{{ url_for('config.index', seccion='jefaturas') }}"
+       class="{{ 'active' if seccion == 'jefaturas' else '' }}">Jefaturas</a>
     <a href="{{ url_for('config.index', seccion='password') }}"
        class="{{ 'active' if seccion == 'password' else '' }}">Cambiar contraseña</a>
   </nav>
@@ -120,6 +122,77 @@
         </table>
       {% else %}
         <div class="empty-state">No hay usuarios registrados.</div>
+      {% endif %}
+    </section>
+
+  {# --- Sección: Jefaturas --- #}
+  {% elif seccion == 'jefaturas' %}
+    <datalist id="areas-list">
+      {% for a in areas %}<option value="{{ a }}">{% endfor %}
+    </datalist>
+
+    <section class="config-card">
+      <h3>Agregar jefatura</h3>
+      <p class="config-help">
+        Datos maestros del personal. El <strong>ID de usuario</strong> es único y se
+        usará para cruzar la información del apartado <strong>COMPS</strong>.
+      </p>
+      <form method="post" action="{{ url_for('config.crear_jefatura') }}" class="config-form">
+        <div class="field">
+          <label for="j-usuario">ID de usuario</label>
+          <input type="text" name="usuario_id" id="j-usuario" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="j-nombre">Nombre</label>
+          <input type="text" name="nombre" id="j-nombre" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="j-area">Área</label>
+          <input type="text" name="area" id="j-area" list="areas-list" autocomplete="off"
+                 placeholder="MDJ, MRK, MDA…">
+        </div>
+        <button type="submit" class="btn-primary">Agregar jefatura</button>
+      </form>
+    </section>
+
+    <section class="config-card">
+      <h3>Jefaturas registradas</h3>
+      {% if jefaturas %}
+        <table class="config-table">
+          <thead>
+            <tr>
+              <th>ID usuario</th>
+              <th>Nombre</th>
+              <th>Área</th>
+              <th class="estado">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for j in jefaturas %}
+              <tr>
+                <td>{{ j.usuario_id }}</td>
+                <td>{{ j.nombre }}</td>
+                <td>{{ j.area or '—' }}</td>
+                <td class="estado">
+                  <form method="post" action="{{ url_for('config.editar_jefatura') }}" class="jefatura-row-form">
+                    <input type="hidden" name="id" value="{{ j.id }}">
+                    <input type="text" name="usuario_id" value="{{ j.usuario_id }}" required title="ID de usuario">
+                    <input type="text" name="nombre" value="{{ j.nombre }}" required title="Nombre">
+                    <input type="text" name="area" value="{{ j.area or '' }}" list="areas-list" title="Área">
+                    <button type="submit" class="btn-secondary">Guardar</button>
+                  </form>
+                  <form method="post" action="{{ url_for('config.eliminar_jefatura') }}"
+                        onsubmit="return confirm('¿Eliminar la jefatura «{{ j.nombre }}»?');">
+                    <input type="hidden" name="id" value="{{ j.id }}">
+                    <button type="submit" class="btn-danger">Eliminar</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">No hay jefaturas registradas. Agrega la primera arriba.</div>
       {% endif %}
     </section>
 
