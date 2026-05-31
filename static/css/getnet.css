@@ -197,3 +197,156 @@
   min-width: 34px;
   /* El color de fondo lo aplica charts.js según el valor (escala oro). */
 }
+
+/* --- Record Asistentes: podio Top 3 --- */
+.podium {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 16px 0 8px;
+}
+
+.podium-card {
+  background: #1f1f1f;
+  border: 1px solid #393939;
+  border-radius: 4px;
+  padding: 20px 16px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.podium-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: #525252;
+}
+
+.podium-card--oro::before { background: #d4af37; }
+.podium-card--plata::before { background: #c6c6c6; }
+.podium-card--bronce::before { background: #b06a2c; }
+
+.podium-card--oro { border-color: #d4af37; }
+
+.podium-medal {
+  font-size: 32px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.podium-name {
+  font-size: 15px;
+  color: #f4f4f4;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.podium-ops {
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-size: 30px;
+  font-weight: 600;
+  color: #d4af37;
+  line-height: 1;
+}
+
+.podium-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8d8d8d;
+  margin-top: 4px;
+}
+
+.podium-date {
+  font-size: 12px;
+  color: #c6c6c6;
+  margin-top: 8px;
+}
+
+@media (max-width: 720px) {
+  .podium {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Record Asistentes: tablas --- */
+.record-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.record-table th,
+.record-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a2a2a;
+  white-space: nowrap;
+}
+
+.record-table thead th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8d8d8d;
+  font-weight: 600;
+}
+
+.record-table td {
+  color: #f4f4f4;
+}
+
+.record-table .num {
+  text-align: right;
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-feature-settings: "tnum";
+}
+
+.record-table th.num {
+  text-align: right;
+}
+
+.record-table .rank {
+  width: 36px;
+  color: #8d8d8d;
+  text-align: right;
+}
+
+.record-table td.zero {
+  color: #525252;
+}
+
+.record-table .total-col {
+  font-weight: 600;
+  color: #d4af37;
+  border-left: 1px solid #393939;
+}
+
+.record-table tfoot th,
+.record-table tfoot td {
+  border-top: 2px solid #393939;
+  border-bottom: none;
+  color: #c6c6c6;
+  font-weight: 600;
+}
+
+.record-matrix th,
+.record-matrix td {
+  padding: 6px 10px;
+}
+
+.record-year {
+  margin-top: 18px;
+}
+
+.record-year-head {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #f4f4f4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+

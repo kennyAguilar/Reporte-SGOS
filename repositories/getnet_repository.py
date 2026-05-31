@@ -387,3 +387,274 @@ def get_heatmap_dia_hora(anio=None, mes=None, nombre=None):
         "rango_inicio": fecha_corta(rango.get("ini")),
         "rango_fin": fecha_corta(rango.get("fin")),
     }
+
+
+# ---------------------------------------------------------------------------
+# RECORD ASISTENTES — métricas por slot attendant
+# ---------------------------------------------------------------------------
+#
+# Todas estas funciones reutilizan _where() (que aplica los filtros de año, mes
+# y nombre, y excluye a los slot attendants marcados como inactivos en
+# Configuración). Así el filtro del header influye en toda la sección.
+
+
+def get_record_jornadas(anio=None, mes=None, nombre=None):
+    """Record de transacciones en UNA jornada por cada asistente.
+
+    Para cada slot attendant busca la jornada donde hizo más transacciones (su
+    mejor día) y devuelve esos records ordenados de mayor a menor.
+
+    Devuelve una lista de dicts {nombre, ops, fecha} o [] si no hay datos. El
+    `fecha` ya viene formateado como dd/mm/aaaa.
+    """
+    where, params = _where(anio, mes, nombre)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT slot_attendant AS nombre, jornada, COUNT(*) AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY slot_attendant, jornada
+                """,
+                params,
+            )
+            filas = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not filas:
+        return []
+
+    # Por cada asistente nos quedamos con su jornada de más operaciones.
+    mejor = {}
+    for f in filas:
+        nom = f["nombre"]
+        actual = mejor.get(nom)
+        if actual is None or f["ops"] > actual["ops"]:
+            mejor[nom] = {"ops": int(f["ops"]), "jornada": f["jornada"]}
+
+    records = [
+        {"nombre": nom, "ops": v["ops"], "fecha": fecha_corta(v["jornada"])}
+        for nom, v in mejor.items()
+    ]
+    records.sort(key=lambda r: r["ops"], reverse=True)
+    return records
+
+
+def get_resumen_asistentes(anio=None, mes=None, nombre=None):
+    """Resumen de métricas por asistente, ordenado por total de transacciones.
+
+    Para cada slot attendant calcula:
+      - total      : cantidad de transacciones
+      - ticket      : ticket promedio = SUM(monto) / COUNT(*) (monto por operación)
+      - franja      : hora del día con más transacciones ("HH:00")
+      - mejor_ops   : nº de transacciones de su mejor jornada
+      - mejor_fecha : fecha de esa mejor jornada (dd/mm/aaaa)
+
+    Devuelve una lista de dicts o [].
+    """
+    where, params = _where(anio, mes, nombre)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Totales y ticket promedio por asistente.
+            cur.execute(
+                f"""
+                SELECT slot_attendant AS nombre,
+                       COUNT(*)        AS total,
+                       SUM(monto)      AS monto
+                FROM {TABLE}
+                {where}
+                GROUP BY slot_attendant
+                """,
+                params,
+            )
+            base = {f["nombre"]: dict(f) for f in cur.fetchall()}
+            if not base:
+                return []
+
+            # Hora con más transacciones por asistente.
+            cur.execute(
+                f"""
+                SELECT slot_attendant AS nombre,
+                       EXTRACT(HOUR FROM fecha)::int AS hora,
+                       COUNT(*)                       AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY slot_attendant, hora
+                """,
+                params,
+            )
+            franja = {}
+            for f in cur.fetchall():
+                nom = f["nombre"]
+                actual = franja.get(nom)
+                if actual is None or f["ops"] > actual["ops"]:
+                    franja[nom] = {"hora": f["hora"], "ops": int(f["ops"])}
+
+            # Mejor jornada por asistente (nº de ops y fecha).
+            cur.execute(
+                f"""
+                SELECT slot_attendant AS nombre, jornada, COUNT(*) AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY slot_attendant, jornada
+                """,
+                params,
+            )
+            mejor = {}
+            for f in cur.fetchall():
+                nom = f["nombre"]
+                actual = mejor.get(nom)
+                if actual is None or f["ops"] > actual["ops"]:
+                    mejor[nom] = {"ops": int(f["ops"]), "jornada": f["jornada"]}
+    finally:
+        conn.close()
+
+    resultado = []
+    for nom, b in base.items():
+        total = int(b["total"])
+        monto = int(b["monto"] or 0)
+        ticket = round(monto / total) if total else 0
+        fr = franja.get(nom)
+        mj = mejor.get(nom)
+        resultado.append(
+            {
+                "nombre": nom,
+                "total": total,
+                "ticket": pesos(ticket),
+                "franja": f"{fr['hora']:02d}:00" if fr else "—",
+                "mejor_ops": mj["ops"] if mj else 0,
+                "mejor_fecha": fecha_corta(mj["jornada"]) if mj else "—",
+            }
+        )
+    resultado.sort(key=lambda r: r["total"], reverse=True)
+    return resultado
+
+
+def get_transacciones_mes_anio(anio=None, mes=None, nombre=None):
+    """Transacciones por mes de cada asistente, separadas por año.
+
+    Devuelve una lista de años (de mayor a menor), cada uno con su tabla:
+        [
+          {
+            "anio": 2026,
+            "meses": ["Ene", ..., "Dic"],
+            "filas": [{"nombre": ..., "valores": [12 ints], "total": N}, ...],
+            "totales": [12 ints],   # total por mes (pie de tabla)
+            "total": N              # total del año
+          }, ...
+        ]
+    o [] si no hay datos. Las filas se ordenan por total del año desc.
+    """
+    where, params = _where(anio, mes, nombre)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT EXTRACT(YEAR FROM jornada)::int  AS anio,
+                       EXTRACT(MONTH FROM jornada)::int AS mes,
+                       slot_attendant                    AS nombre,
+                       COUNT(*)                          AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY anio, mes, nombre
+                """,
+                params,
+            )
+            filas = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not filas:
+        return []
+
+    meses_abbr = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+
+    # estructura: anios[anio][nombre] = [12 ints]
+    anios = {}
+    for f in filas:
+        a = anios.setdefault(f["anio"], {})
+        fila = a.setdefault(f["nombre"], [0] * 12)
+        fila[f["mes"] - 1] = int(f["ops"])
+
+    resultado = []
+    for a in sorted(anios.keys(), reverse=True):
+        asistentes = anios[a]
+        filas_out = [
+            {"nombre": nom, "valores": vals, "total": sum(vals)}
+            for nom, vals in asistentes.items()
+        ]
+        filas_out.sort(key=lambda r: r["total"], reverse=True)
+        totales = [sum(asistentes[nom][i] for nom in asistentes) for i in range(12)]
+        resultado.append(
+            {
+                "anio": a,
+                "meses": meses_abbr,
+                "filas": filas_out,
+                "totales": totales,
+                "total": sum(totales),
+            }
+        )
+    return resultado
+
+
+def get_total_por_anio(anio=None, mes=None, nombre=None):
+    """Total acumulado de transacciones por asistente y año.
+
+    Devuelve un dict:
+        {
+          "anios": [2025, 2026],
+          "filas": [{"nombre": ..., "valores": [n_2025, n_2026], "total": N}, ...],
+          "totales": [n_2025, n_2026],
+          "total": N
+        }
+    o None si no hay datos. Las filas se ordenan por total desc.
+    """
+    where, params = _where(anio, mes, nombre)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT EXTRACT(YEAR FROM jornada)::int AS anio,
+                       slot_attendant                   AS nombre,
+                       COUNT(*)                         AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY anio, nombre
+                """,
+                params,
+            )
+            filas = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not filas:
+        return None
+
+    anios = sorted({f["anio"] for f in filas})
+    idx = {a: i for i, a in enumerate(anios)}
+
+    por_nombre = {}
+    for f in filas:
+        vals = por_nombre.setdefault(f["nombre"], [0] * len(anios))
+        vals[idx[f["anio"]]] = int(f["ops"])
+
+    filas_out = [
+        {"nombre": nom, "valores": vals, "total": sum(vals)}
+        for nom, vals in por_nombre.items()
+    ]
+    filas_out.sort(key=lambda r: r["total"], reverse=True)
+    totales = [sum(por_nombre[nom][i] for nom in por_nombre) for i in range(len(anios))]
+
+    return {
+        "anios": anios,
+        "filas": filas_out,
+        "totales": totales,
+        "total": sum(totales),
+    }

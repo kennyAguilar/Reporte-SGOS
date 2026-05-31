@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Getnet · Record Asistentes — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "getnet" %}
+{# El filtro del header se queda en esta sección al aplicar/limpiar. #}
+{% set filter_action = url_for('getnet.record_asistentes') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Getnet #}
+    <nav class="submenu">
+      <a href="{{ url_for('getnet.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('getnet.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('getnet.record_asistentes') }}"
+         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Getnet</div>
+      <h2>Record Asistentes</h2>
+    </div>
+
+    {% if not podio and not resumen_asist %}
+      <div class="empty-state">No hay datos de asistentes para este filtro. Ajusta los filtros o carga un archivo.</div>
+    {% else %}
+
+      {# === Bloque 1: Podio Top 3 — record en una jornada === #}
+      <section class="chart-card">
+        <h3>🏆 Top 3 · Record de transacciones en una jornada</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué mide?</strong> El mejor día de cada asistente: la jornada
+          en la que realizó <em>más transacciones</em>. Se rankean esos records de
+          mayor a menor. Respeta los filtros activos (año, mes, nombre).
+        </div>
+
+        {% if podio %}
+          {% set medallas = ['🥇', '🥈', '🥉'] %}
+          {% set clases = ['oro', 'plata', 'bronce'] %}
+          <div class="podium">
+            {% for p in podio %}
+              <div class="podium-card podium-card--{{ clases[loop.index0] }}">
+                <div class="podium-medal">{{ medallas[loop.index0] }}</div>
+                <div class="podium-name">{{ p.nombre }}</div>
+                <div class="podium-ops">{{ p.ops }}</div>
+                <div class="podium-label">transacciones</div>
+                <div class="podium-date">{{ p.fecha }}</div>
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if record_resto %}
+            <table class="record-table">
+              <thead>
+                <tr><th class="rank">#</th><th>Asistente</th><th class="num">Transacciones</th><th>Mejor jornada</th></tr>
+              </thead>
+              <tbody>
+                {% for r in record_resto %}
+                  <tr>
+                    <td class="rank">{{ loop.index + 3 }}</td>
+                    <td>{{ r.nombre }}</td>
+                    <td class="num">{{ r.ops }}</td>
+                    <td>{{ r.fecha }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 2: Resumen por asistente === #}
+      <section class="chart-card">
+        <h3>📊 Resumen por asistente</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué incluye?</strong>
+          <em>Transacciones</em> = total de operaciones del periodo ·
+          <em>Ticket promedio</em> = monto total ÷ transacciones (valor medio por operación) ·
+          <em>Franja top</em> = hora del día con más operaciones ·
+          <em>Mejor jornada</em> = su día record. Ordenado por transacciones (mayor a menor).
+        </div>
+
+        {% if resumen_asist %}
+          <div class="heatmap-scroll">
+            <table class="record-table">
+              <thead>
+                <tr>
+                  <th class="rank">#</th>
+                  <th>Asistente</th>
+                  <th class="num">Transacciones</th>
+                  <th class="num">Ticket promedio</th>
+                  <th class="num">Franja top</th>
+                  <th class="num">Mejor jornada</th>
+                  <th>Fecha record</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in resumen_asist %}
+                  <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ a.nombre }}</td>
+                    <td class="num">{{ a.total }}</td>
+                    <td class="num">{{ a.ticket }}</td>
+                    <td class="num">{{ a.franja }}</td>
+                    <td class="num">{{ a.mejor_ops }}</td>
+                    <td>{{ a.mejor_fecha }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 3: Transacciones por mes, separadas por año === #}
+      <section class="chart-card">
+        <h3>📅 Transacciones por mes (por año)</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué muestra?</strong> Las transacciones de cada asistente
+          mes a mes, con una tabla por año. La fila <em>Total</em> suma todos los
+          asistentes por mes.
+        </div>
+
+        {% if trans_mes %}
+          {% for tabla in trans_mes %}
+            <div class="record-year">
+              <h4 class="record-year-head">{{ tabla.anio }} <span class="badge">{{ tabla.total }} transacciones</span></h4>
+              <div class="heatmap-scroll">
+                <table class="record-table record-matrix">
+                  <thead>
+                    <tr>
+                      <th>Asistente</th>
+                      {% for m in tabla.meses %}<th class="num">{{ m }}</th>{% endfor %}
+                      <th class="num total-col">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for fila in tabla.filas %}
+                      <tr>
+                        <td>{{ fila.nombre }}</td>
+                        {% for v in fila.valores %}
+                          <td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>
+                        {% endfor %}
+                        <td class="num total-col">{{ fila.total }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th>Total</th>
+                      {% for t in tabla.totales %}<td class="num">{{ t }}</td>{% endfor %}
+                      <td class="num total-col">{{ tabla.total }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 4: Total acumulado por año === #}
+      <section class="chart-card">
+        <h3>🗓️ Total acumulado por año</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué muestra?</strong> El total de transacciones de cada
+          asistente en cada año, para comparar su evolución. Ordenado por total
+          general (mayor a menor).
+        </div>
+
+        {% if total_anio %}
+          <div class="heatmap-scroll">
+            <table class="record-table">
+              <thead>
+                <tr>
+                  <th class="rank">#</th>
+                  <th>Asistente</th>
+                  {% for a in total_anio.anios %}<th class="num">{{ a }}</th>{% endfor %}
+                  <th class="num total-col">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for fila in total_anio.filas %}
+                  <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ fila.nombre }}</td>
+                    {% for v in fila.valores %}<td class="num">{{ v }}</td>{% endfor %}
+                    <td class="num total-col">{{ fila.total }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th></th>
+                  <th>Total</th>
+                  {% for t in total_anio.totales %}<td class="num">{{ t }}</td>{% endfor %}
+                  <td class="num total-col">{{ total_anio.total }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+{% endblock %}

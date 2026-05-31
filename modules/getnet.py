@@ -106,15 +106,25 @@ def historico():
 @getnet_bp.route("/record-asistentes")
 @login_required
 def record_asistentes():
-    """Record de asistentes Getnet (pendiente de construir)."""
+    """Record de asistentes Getnet: podio, resumen y transacciones por periodo."""
     anio, mes, nombre, filtros, anios = _contexto_filtros()
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
+
+    record = _safe(getnet_repository.get_record_jornadas, anio, mes, nombre) or []
+    resumen_asist = _safe(getnet_repository.get_resumen_asistentes, anio, mes, nombre) or []
+    trans_mes = _safe(getnet_repository.get_transacciones_mes_anio, anio, mes, nombre) or []
+    total_anio = _safe(getnet_repository.get_total_por_anio, anio, mes, nombre)
+
     return render_template(
-        "getnet/placeholder.html",
+        "getnet/record.html",
         user=current_user(),
         active="getnet",
         seccion="record",
-        titulo="Record Asistentes",
+        podio=record[:3],
+        record_resto=record[3:],
+        resumen_asist=resumen_asist,
+        trans_mes=trans_mes,
+        total_anio=total_anio,
         ultimo_archivo=ultimo_archivo,
         filtros=filtros,
         anios=anios,
