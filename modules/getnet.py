@@ -88,15 +88,20 @@ def dashboard():
 @getnet_bp.route("/historico")
 @login_required
 def historico():
-    """Histórico de operaciones Getnet (pendiente de construir)."""
+    """Histórico de Getnet: resumen mensual y operaciones por hora."""
     anio, mes, nombre, filtros, anios = _contexto_filtros()
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
+
+    resumen_mensual = _safe(getnet_repository.get_resumen_mensual, anio, mes, nombre)
+    ops_hora = _safe(getnet_repository.get_operaciones_por_hora, anio, mes, nombre)
+
     return render_template(
-        "getnet/placeholder.html",
+        "getnet/historico.html",
         user=current_user(),
         active="getnet",
         seccion="historico",
-        titulo="Histórico",
+        resumen_mensual=resumen_mensual,
+        ops_hora=ops_hora,
         ultimo_archivo=ultimo_archivo,
         filtros=filtros,
         anios=anios,

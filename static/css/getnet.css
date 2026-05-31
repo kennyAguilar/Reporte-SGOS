@@ -332,6 +332,16 @@
   font-weight: 600;
 }
 
+/* Fila de hora pico en el Histórico */
+.record-table tr.pico-row td {
+  background: rgba(212, 175, 55, 0.10);
+  color: #f4f4f4;
+}
+
+.record-table tr.pico-row .badge {
+  margin-left: 6px;
+}
+
 .record-matrix th,
 .record-matrix td {
   padding: 6px 10px;

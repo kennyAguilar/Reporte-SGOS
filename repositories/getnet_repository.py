@@ -395,6 +395,138 @@ def get_promedio_por_hora(anio=None, mes=None, nombre=None):
     return {"labels": labels, "operaciones": operaciones, "montos": montos}
 
 
+def get_resumen_mensual(anio=None, mes=None, nombre=None):
+    """Resumen del Histórico por mes: operaciones, monto y ticket promedio.
+
+    Agrupa por mes de la `jornada`. Devuelve un dict:
+        {
+          "filas": [{"mes": "Enero 2026", "ops": N, "monto": M, "ticket": T}, ...],
+          "total_ops": ..., "total_monto": ..., "ticket": ...
+        }
+    o None si no hay datos. Las filas van de más reciente a más antiguo.
+    """
+    where, params = _where(anio, mes, nombre)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT DATE_TRUNC('month', jornada) AS mes,
+                       COUNT(*)                      AS ops,
+                       SUM(monto)                    AS monto
+                FROM {TABLE}
+                {where}
+                GROUP BY 1
+                ORDER BY 1 DESC
+                """,
+                params,
+            )
+            filas = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not filas:
+        return None
+
+    out = []
+    total_ops = total_monto = 0
+    for f in filas:
+        ops = int(f["ops"])
+        monto = int(f["monto"] or 0)
+        total_ops += ops
+        total_monto += monto
+        out.append(
+            {
+                "mes": mes_anio_es(f["mes"]),
+                "ops": miles(ops),
+                "monto": pesos(monto),
+                "ticket": pesos(round(monto / ops)) if ops else pesos(0),
+            }
+        )
+    return {
+        "filas": out,
+        "total_ops": miles(total_ops),
+        "total_monto": pesos(total_monto),
+        "ticket": pesos(round(total_monto / total_ops)) if total_ops else pesos(0),
+    }
+
+
+def get_operaciones_por_hora(anio=None, mes=None, nombre=None):
+    """Detalle del Histórico por hora: totales y promedios por jornada.
+
+    Para cada hora (orden de Jornada 10→08) entrega el total de operaciones y
+    monto del periodo, y su promedio por jornada (÷ jornadas únicas). Devuelve:
+        {
+          "filas": [{"hora": "10:00", "ops": .., "monto": .., "ops_prom": ..,
+                     "monto_prom": .., "es_pico": bool}, ...],
+          "jornadas": J, "total_ops": .., "total_monto": ..,
+          "ops_prom": .., "monto_prom": ..
+        }
+    o None si no hay datos.
+    """
+    where, params = _where(anio, mes, nombre)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT COUNT(DISTINCT jornada) AS n FROM {TABLE} {where}",
+                params,
+            )
+            jornadas = (cur.fetchone() or {}).get("n") or 0
+            if not jornadas:
+                return None
+
+            cur.execute(
+                f"""
+                SELECT EXTRACT(HOUR FROM fecha)::int AS hora,
+                       COUNT(*)                        AS ops,
+                       SUM(monto)                      AS monto
+                FROM {TABLE}
+                {where}
+                GROUP BY 1
+                """,
+                params,
+            )
+            por_hora = {f["hora"]: f for f in cur.fetchall()}
+    finally:
+        conn.close()
+
+    # Hora pico = la de mayor número de operaciones (para resaltarla).
+    hora_pico = None
+    max_ops = -1
+    for h, f in por_hora.items():
+        if int(f["ops"]) > max_ops:
+            max_ops = int(f["ops"])
+            hora_pico = h
+
+    filas = []
+    total_ops = total_monto = 0
+    for h in HORAS_JORNADA:
+        f = por_hora.get(h)
+        ops = int(f["ops"]) if f else 0
+        monto = int(f["monto"] or 0) if f else 0
+        total_ops += ops
+        total_monto += monto
+        filas.append(
+            {
+                "hora": f"{h:02d}:00",
+                "ops": miles(ops),
+                "monto": pesos(monto),
+                "ops_prom": round(ops / jornadas, 1),
+                "monto_prom": pesos(round(monto / jornadas)),
+                "es_pico": h == hora_pico and ops > 0,
+            }
+        )
+    return {
+        "filas": filas,
+        "jornadas": miles(jornadas),
+        "total_ops": miles(total_ops),
+        "total_monto": pesos(total_monto),
+        "ops_prom": round(total_ops / jornadas, 1),
+        "monto_prom": pesos(round(total_monto / jornadas)),
+    }
+
+
 def get_heatmap_dia_hora(anio=None, mes=None, nombre=None):
     """Mapa de calor: promedio de operaciones por jornada en cada franja día×hora.
 

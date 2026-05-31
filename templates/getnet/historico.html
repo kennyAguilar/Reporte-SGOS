@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}Getnet · Histórico — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "getnet" %}
+{# El filtro del header se queda en esta sección al aplicar/limpiar. #}
+{% set filter_action = url_for('getnet.historico') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Getnet #}
+    <nav class="submenu">
+      <a href="{{ url_for('getnet.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('getnet.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('getnet.record_asistentes') }}"
+         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Getnet</div>
+      <h2>Histórico</h2>
+    </div>
+
+    {% if not resumen_mensual and not ops_hora %}
+      <div class="empty-state">No hay datos para este filtro. Ajusta los filtros (año, mes, nombre) o carga un archivo.</div>
+    {% else %}
+
+      {# === Bloque 1: Resumen mensual === #}
+      <section class="chart-card">
+        <h3>📅 Resumen mensual</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Cómo se obtiene?</strong> Se agrupan todas las operaciones por
+          el <em>mes de la jornada</em>. <strong>Operaciones</strong> = cantidad de
+          transacciones del mes; <strong>Monto</strong> = suma de la columna Monto;
+          <strong>Ticket promedio</strong> = Monto ÷ Operaciones. Respeta los
+          filtros activos (año, mes, nombre).
+        </div>
+
+        {% if resumen_mensual %}
+          <div class="heatmap-scroll">
+            <table class="record-table">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th class="num">Operaciones</th>
+                  <th class="num">Monto</th>
+                  <th class="num">Ticket promedio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in resumen_mensual.filas %}
+                  <tr>
+                    <td>{{ f.mes }}</td>
+                    <td class="num">{{ f.ops }}</td>
+                    <td class="num">{{ f.monto }}</td>
+                    <td class="num">{{ f.ticket }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td>Total</td>
+                  <td class="num total-col">{{ resumen_mensual.total_ops }}</td>
+                  <td class="num total-col">{{ resumen_mensual.total_monto }}</td>
+                  <td class="num total-col">{{ resumen_mensual.ticket }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos para este filtro.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 2: Operaciones por hora === #}
+      <section class="chart-card">
+        <h3>🕒 Operaciones por hora</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Cómo se obtiene?</strong> La hora sale del campo <em>fecha</em>
+          (hora real de la operación) y se ordena según la jornada (10:00 → 08:00).
+          <strong>Operaciones</strong> y <strong>Monto</strong> son los totales de
+          esa hora en el periodo. Los <strong>promedios</strong> dividen ese total
+          entre la cantidad de jornadas únicas del periodo
+          {% if ops_hora %}(<strong>{{ ops_hora.jornadas }}</strong> jornadas){% endif %},
+          para que sean comparables entre periodos de distinto tamaño. La fila
+          resaltada es la <strong>hora pico</strong> (mayor número de operaciones).
+          La hora <em>09:00</em> queda fuera de la jornada, por lo que su total
+          puede diferir levemente del resumen mensual.
+        </div>
+
+        {% if ops_hora %}
+          <div class="heatmap-scroll">
+            <table class="record-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th class="num">Operaciones</th>
+                  <th class="num">Monto</th>
+                  <th class="num">Ops promedio</th>
+                  <th class="num">Monto promedio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in ops_hora.filas %}
+                  <tr class="{{ 'pico-row' if f.es_pico else '' }}">
+                    <td>{{ f.hora }}{% if f.es_pico %} <span class="badge">pico</span>{% endif %}</td>
+                    <td class="num">{{ f.ops }}</td>
+                    <td class="num">{{ f.monto }}</td>
+                    <td class="num">{{ f.ops_prom }}</td>
+                    <td class="num">{{ f.monto_prom }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td>Total</td>
+                  <td class="num total-col">{{ ops_hora.total_ops }}</td>
+                  <td class="num total-col">{{ ops_hora.total_monto }}</td>
+                  <td class="num total-col">{{ ops_hora.ops_prom }}</td>
+                  <td class="num total-col">{{ ops_hora.monto_prom }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos para este filtro.</div>
+        {% endif %}
+      </section>
+
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+{% endblock %}
