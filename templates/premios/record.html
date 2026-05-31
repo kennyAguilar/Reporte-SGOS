@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Premios · Record Asistentes — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "premios" %}
+{# El filtro del header se queda en esta sección al aplicar/limpiar. #}
+{% set filter_action = url_for('premios.record_asistentes') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Premios #}
+    <nav class="submenu">
+      <a href="{{ url_for('premios.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('premios.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('premios.record_asistentes') }}"
+         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Premios</div>
+      <h2>Record Asistentes</h2>
+    </div>
+
+    {% if not podio and not resumen_asist %}
+      <div class="empty-state">No hay datos de asistentes para este filtro. Ajusta los filtros o carga un archivo.</div>
+    {% else %}
+
+      {# === Bloque 1: Podio Top 3 — record en una jornada === #}
+      <section class="chart-card">
+        <h3>🏆 Top 3 · Record de transacciones en una jornada</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué mide?</strong> El mejor día de cada asistente: la jornada
+          en la que pagó <em>más premios</em> (todos los tipos de pago). Se rankean
+          esos records de mayor a menor. Respeta los filtros activos (año, mes, nombre).
+        </div>
+
+        {% if podio %}
+          {% set medallas = ['🥇', '🥈', '🥉'] %}
+          {% set clases = ['oro', 'plata', 'bronce'] %}
+          <div class="podium">
+            {% for p in podio %}
+              <div class="podium-card podium-card--{{ clases[loop.index0] }}">
+                <div class="podium-medal">{{ medallas[loop.index0] }}</div>
+                <div class="podium-name">{{ p.nombre }}</div>
+                <div class="podium-ops">{{ p.ops }}</div>
+                <div class="podium-label">transacciones</div>
+                <div class="podium-date">{{ p.fecha }}</div>
+              </div>
+            {% endfor %}
+          </div>
+
+          {% if record_resto %}
+            <table class="record-table">
+              <thead>
+                <tr><th class="rank">#</th><th>Asistente</th><th class="num">Transacciones</th><th>Mejor jornada</th></tr>
+              </thead>
+              <tbody>
+                {% for r in record_resto %}
+                  <tr>
+                    <td class="rank">{{ loop.index + 3 }}</td>
+                    <td>{{ r.nombre }}</td>
+                    <td class="num">{{ r.ops }}</td>
+                    <td>{{ r.fecha }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 2: Resumen por asistente con tipos de pago === #}
+      <section class="chart-card">
+        <h3>📊 Resumen por asistente · por tipo de pago</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué incluye?</strong> El conteo de transacciones de cada
+          asistente <em>por cada tipo de pago</em> (sin montos), su <em>Total</em>,
+          y su <em>Mejor jornada</em> (nº de transacciones y fecha record).
+          Ordenado por total (mayor a menor).
+        </div>
+
+        {% if resumen_asist %}
+          <div class="heatmap-scroll">
+            <table class="record-table record-matrix">
+              <thead>
+                <tr>
+                  <th class="rank">#</th>
+                  <th>Asistente</th>
+                  {% for t in resumen_asist.tipos %}<th class="num">{{ t }}</th>{% endfor %}
+                  <th class="num total-col">Total</th>
+                  <th class="num">Mejor jornada</th>
+                  <th>Fecha record</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for a in resumen_asist.filas %}
+                  <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ a.nombre }}</td>
+                    {% for v in a.valores %}
+                      <td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>
+                    {% endfor %}
+                    <td class="num total-col">{{ a.total }}</td>
+                    <td class="num">{{ a.mejor_ops }}</td>
+                    <td>{{ a.mejor_fecha }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th></th>
+                  <th>Total</th>
+                  {% for t in resumen_asist.totales %}<td class="num">{{ t }}</td>{% endfor %}
+                  <td class="num total-col">{{ resumen_asist.total }}</td>
+                  <td class="num"></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 3: Transacciones por mes, separadas por año === #}
+      <section class="chart-card">
+        <h3>📅 Transacciones por mes (por año)</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué muestra?</strong> Las transacciones de cada asistente
+          mes a mes, con una tabla por año. La fila <em>Total</em> suma todos los
+          asistentes por mes.
+        </div>
+
+        {% if trans_mes %}
+          {% for tabla in trans_mes %}
+            <div class="record-year">
+              <h4 class="record-year-head">{{ tabla.anio }} <span class="badge">{{ tabla.total }} transacciones</span></h4>
+              <div class="heatmap-scroll">
+                <table class="record-table record-matrix">
+                  <thead>
+                    <tr>
+                      <th>Asistente</th>
+                      {% for m in tabla.meses %}<th class="num">{{ m }}</th>{% endfor %}
+                      <th class="num total-col">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for fila in tabla.filas %}
+                      <tr>
+                        <td>{{ fila.nombre }}</td>
+                        {% for v in fila.valores %}
+                          <td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>
+                        {% endfor %}
+                        <td class="num total-col">{{ fila.total }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th>Total</th>
+                      {% for t in tabla.totales %}<td class="num">{{ t }}</td>{% endfor %}
+                      <td class="num total-col">{{ tabla.total }}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 4: Total acumulado por año === #}
+      <section class="chart-card">
+        <h3>🗓️ Total acumulado por año</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué muestra?</strong> El total de transacciones de cada
+          asistente en cada año, para comparar su evolución. Ordenado por total
+          general (mayor a menor).
+        </div>
+
+        {% if total_anio %}
+          <div class="heatmap-scroll">
+            <table class="record-table">
+              <thead>
+                <tr>
+                  <th class="rank">#</th>
+                  <th>Asistente</th>
+                  {% for a in total_anio.anios %}<th class="num">{{ a }}</th>{% endfor %}
+                  <th class="num total-col">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for fila in total_anio.filas %}
+                  <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ fila.nombre }}</td>
+                    {% for v in fila.valores %}<td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>{% endfor %}
+                    <td class="num total-col">{{ fila.total }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th></th>
+                  <th>Total</th>
+                  {% for t in total_anio.totales %}<td class="num">{{ t }}</td>{% endfor %}
+                  <td class="num total-col">{{ total_anio.total }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 5: Distribución de tipos de pago === #}
+      <section class="chart-card">
+        <h3>🎰 Distribución por tipo de pago</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué muestra?</strong> El conteo total de transacciones por
+          cada tipo de pago en el periodo filtrado (sin montos). Solo incluye
+          transacciones con asistente asignado.
+        </div>
+        {% if distribucion %}
+          <div class="chart-box"><canvas id="chart-tipos"></canvas></div>
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="getnet-data" type="application/json">
+        {{ { "tipos": distribucion } | tojson }}
+      </script>
+
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  {% if distribucion %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}

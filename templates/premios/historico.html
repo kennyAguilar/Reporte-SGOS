@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Premios · Histórico — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "premios" %}
+{# El filtro del header se queda en esta sección al aplicar/limpiar. #}
+{% set filter_action = url_for('premios.historico') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Premios #}
+    <nav class="submenu">
+      <a href="{{ url_for('premios.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('premios.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('premios.record_asistentes') }}"
+         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Premios</div>
+      <h2>Histórico</h2>
+    </div>
+
+    {% if not resumen_mensual and not ops_hora and not conteo_anual %}
+      <div class="empty-state">No hay datos para este filtro. Ajusta los filtros (año, mes, nombre) o carga un archivo.</div>
+    {% else %}
+
+      {# === Bloque 1: Resumen mensual === #}
+      <section class="chart-card">
+        <h3>📅 Resumen mensual <span class="badge">Solo premios HP</span></h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Cómo se obtiene?</strong> Se agrupan por el <em>mes de la
+          jornada</em> <strong>solo</strong> las operaciones de tipo
+          <em>Jackpot HP</em> y <em>Progressive Jackpot HP</em>.
+          <strong>Operaciones</strong> = cantidad de premios del mes;
+          <strong>Monto</strong> = suma de la <em>Transferencia Final</em>.
+          Respeta los filtros activos (año, mes, nombre).
+        </div>
+
+        {% if resumen_mensual %}
+          <div class="heatmap-scroll">
+            <table class="record-table">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th class="num">Operaciones</th>
+                  <th class="num">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in resumen_mensual.filas %}
+                  <tr>
+                    <td>{{ f.mes }}</td>
+                    <td class="num">{{ f.ops }}</td>
+                    <td class="num">{{ f.monto }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td>Total</td>
+                  <td class="num total-col">{{ resumen_mensual.total_ops }}</td>
+                  <td class="num total-col">{{ resumen_mensual.total_monto }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos para este filtro.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 2: Operaciones por hora === #}
+      <section class="chart-card">
+        <h3>🕒 Operaciones por hora</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Cómo se obtiene?</strong> La hora sale del campo <em>fecha</em>
+          (hora real de la operación) y se ordena según la jornada (10:00 → 08:00).
+          <strong>Operaciones</strong> cuenta <em>todos</em> los tipos de pago;
+          <strong>Montos</strong> suma la <em>Transferencia Final</em>
+          <strong>solo</strong> de los premios HP. Los <strong>promedios</strong>
+          dividen el total entre las jornadas únicas del periodo
+          {% if ops_hora %}(<strong>{{ ops_hora.jornadas }}</strong> jornadas){% endif %}.
+          La fila resaltada es la <strong>hora pico</strong> (mayor número de
+          operaciones). La hora <em>09:00</em> queda fuera de la jornada.
+        </div>
+
+        {% if ops_hora %}
+          <div class="heatmap-scroll">
+            <table class="record-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th class="num">Operaciones</th>
+                  <th class="num">Ops promedio</th>
+                  <th class="num">Montos</th>
+                  <th class="num">Montos promedio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in ops_hora.filas %}
+                  <tr class="{{ 'pico-row' if f.es_pico else '' }}">
+                    <td>{{ f.hora }}{% if f.es_pico %} <span class="badge">pico</span>{% endif %}</td>
+                    <td class="num">{{ f.ops }}</td>
+                    <td class="num">{{ f.ops_prom }}</td>
+                    <td class="num">{{ f.monto }}</td>
+                    <td class="num">{{ f.monto_prom }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td>Total</td>
+                  <td class="num total-col">{{ ops_hora.total_ops }}</td>
+                  <td class="num total-col">{{ ops_hora.ops_prom }}</td>
+                  <td class="num total-col">{{ ops_hora.total_monto }}</td>
+                  <td class="num total-col">{{ ops_hora.monto_prom }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos para este filtro.</div>
+        {% endif %}
+      </section>
+
+      {# === Bloque 3: Conteo total anual (Mes × Máquina) === #}
+      <section class="chart-card">
+        <h3>🎰 Conteo total anual · Mes × Máquina</h3>
+        <div class="info-note">
+          ℹ️ <strong>¿Qué muestra?</strong> Una fila por cada combinación de
+          <em>Mes</em> y <em>Máquina</em>. Hay una columna de conteo por cada
+          <em>tipo de operación</em> (todos los tipos, por separado), el
+          <strong>Total</strong> de la fila, y el <strong>Monto premios</strong>
+          (<em>Transferencia Final</em> <strong>solo</strong> de Jackpot HP y
+          Progressive Jackpot HP). Respeta el filtro del header.
+        </div>
+
+        {% if conteo_anual %}
+          <div class="heatmap-scroll">
+            <table class="record-table record-matrix">
+              <thead>
+                <tr>
+                  <th>Mes</th>
+                  <th>Máquina</th>
+                  {% for t in conteo_anual.tipos %}<th class="num">{{ t }}</th>{% endfor %}
+                  <th class="num total-col">Total</th>
+                  <th class="num">Monto premios</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for f in conteo_anual.filas %}
+                  <tr>
+                    <td>{{ f.mes }}</td>
+                    <td>{{ f.maquina }}</td>
+                    {% for v in f.valores %}
+                      <td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>
+                    {% endfor %}
+                    <td class="num total-col">{{ f.total }}</td>
+                    <td class="num">{{ f.monto }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr class="total-row">
+                  <td></td>
+                  <td>Total</td>
+                  {% for t in conteo_anual.totales %}<td class="num">{{ t }}</td>{% endfor %}
+                  <td class="num total-col">{{ conteo_anual.total }}</td>
+                  <td class="num total-col">{{ conteo_anual.total_monto }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos para este filtro.</div>
+        {% endif %}
+      </section>
+
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+{% endblock %}

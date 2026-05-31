@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Premios · Dashboard — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "premios" %}
+{% set filter_action = url_for('premios.dashboard') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Premios #}
+    <nav class="submenu">
+      <a href="{{ url_for('premios.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('premios.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('premios.record_asistentes') }}"
+         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Premios</div>
+      <h2>Dashboard</h2>
+    </div>
+
+    {# KPIs rápidos #}
+    {% if kpis %}
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Operaciones</div>
+          <div class="kpi-value">{{ kpis.total_ops }}</div>
+          <div class="kpi-extra">
+            <span><em>Días contados</em> {{ kpis.dias }}</span>
+            <span><em>Promedio x día</em> {{ kpis.promedio_ops }}</span>
+          </div>
+        </div>
+        <div class="kpi-card kpi-card--accent">
+          <div class="kpi-label">Monto total (premios)</div>
+          <div class="kpi-value financiero">{{ kpis.monto_total }}</div>
+          <div class="kpi-extra">
+            <span><em>Premios pagados</em> {{ kpis.premios }}</span>
+            <span><em>Ticket promedio</em> {{ kpis.ticket }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Hora pico</div>
+          <div class="kpi-value">{{ kpis.hora_pico }}</div>
+          <div class="kpi-extra">
+            <span><em>Operaciones promedio</em> {{ kpis.ops_pico_prom }}</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {# Leyenda de cálculos #}
+    <section class="legend-card">
+      <h3 class="legend-title">📒 Leyenda de cálculos</h3>
+      <div class="legend-grid">
+        <div>
+          <strong>Base de datos</strong>
+          <p>La tabla guarda <em>todos</em> los tipos de pago. El filtro de año y mes limita todos los gráficos.</p>
+        </div>
+        <div>
+          <strong>Operaciones por Mes</strong>
+          <p>Cuenta <em>todas</em> las operaciones (todos los tipos de pago) agrupadas por mes de la jornada.</p>
+        </div>
+        <div>
+          <strong>Montos por Mes</strong>
+          <p>Suma <em>Transferencia Final</em> agrupada por mes, <strong>solo</strong> de <em>Jackpot HP</em> y <em>Progressive Jackpot HP</em>.</p>
+        </div>
+        <div>
+          <strong>Operaciones por Hora (Promedio)</strong>
+          <p>Agrupa por hora en jornada 10:00 a 08:00 (todos los tipos) y divide entre las jornadas únicas del periodo.</p>
+        </div>
+        <div>
+          <strong>Montos por Hora (Promedio)</strong>
+          <p>Suma <em>Transferencia Final</em> por hora <strong>solo</strong> de <em>Jackpot HP</em> y <em>Progressive Jackpot HP</em>, dividida entre las jornadas únicas del periodo.</p>
+        </div>
+        <div>
+          <strong>Mapa de calor</strong>
+          <p>Cada celda Día × Hora (todos los tipos) divide el total de esa franja entre la cantidad de jornadas de ese día de la semana.</p>
+        </div>
+      </div>
+    </section>
+
+    {% if not resumen %}
+      <div class="empty-state">No hay datos de Premios para este filtro. Carga un archivo o ajusta los filtros.</div>
+    {% else %}
+      {# Fila 1: por mes #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>☑️ Operaciones por Mes</h3>
+          {% if ops_mes %}
+            <div class="chart-box"><canvas id="chart-ops-mes"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>$ Montos por Mes <span class="badge">Solo premios HP</span></h3>
+          {% if montos_mes %}
+            <div class="chart-box"><canvas id="chart-montos-mes"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Fila 2: por hora (promedio) #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🕒 Operaciones por Hora (Promedio)</h3>
+          {% if promedio_hora %}
+            <div class="chart-box"><canvas id="chart-ops-hora"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>💳 Montos por Hora (Promedio) <span class="badge">Solo premios HP</span></h3>
+          {% if promedio_hora %}
+            <div class="chart-box"><canvas id="chart-montos-hora"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Mapa de calor Día × Hora #}
+      <section class="chart-card heatmap-card">
+        <div class="heatmap-head">
+          <h3>▦ Mapa de Calor · Día × Hora <span class="badge">Promedio</span></h3>
+        </div>
+        {% if heatmap %}
+          <div class="info-note">
+            ℹ️ <strong>¿Cómo se calcula el promedio?</strong> Cada celda muestra el
+            <em>promedio por jornada</em>: se suman todas las operaciones (todos los
+            tipos de pago) ocurridas en esa franja horaria de ese día de la semana y se
+            dividen entre la cantidad de fechas únicas de ese día presentes en los datos.
+          </div>
+          <div class="heatmap-chips">
+            <span class="chip">Rango: {{ heatmap.rango_inicio }} → {{ heatmap.rango_fin }}</span>
+            <span class="chip">Jornadas: {{ heatmap.total_jornadas }}</span>
+            {% for dia, n in heatmap.jornadas_por_dia.items() %}
+              <span class="chip chip--muted">{{ dia[:3] }}: {{ n }}</span>
+            {% endfor %}
+          </div>
+          <div class="heatmap-scroll">
+            <table class="heatmap">
+              <thead>
+                <tr>
+                  <th class="corner"></th>
+                  {% for h in heatmap.horas %}<th>{{ h }}</th>{% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for dia in heatmap.dias %}
+                  <tr>
+                    <th class="rowhead">{{ dia }}</th>
+                    {% for valor in heatmap.matriz[loop.index0] %}
+                      <td class="hcell" data-valor="{{ valor }}">{{ '%.1f'|format(valor) }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos para el mapa de calor.</div>
+        {% endif %}
+      </section>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="getnet-data" type="application/json">
+        {{ {
+          "ops_mes": ops_mes,
+          "montos_mes": montos_mes,
+          "promedio_hora": promedio_hora,
+          "formas": None
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  {% if resumen %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}

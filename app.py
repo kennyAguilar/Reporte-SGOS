@@ -6,8 +6,9 @@ from modules.auth import auth_bp
 from modules.config import config_bp
 from modules.getnet import getnet_bp
 from modules.home import home_bp
+from modules.premios import premios_bp
 from modules.upload import upload_bp
-from repositories import config_repository
+from repositories import config_repository, premios_repository
 
 
 def create_app():
@@ -17,13 +18,18 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(home_bp)
     app.register_blueprint(getnet_bp)
+    app.register_blueprint(premios_bp)
     app.register_blueprint(upload_bp)
     app.register_blueprint(config_bp)
 
-    # Asegura el esquema del apartado de Configuración (tabla slot_attendants).
+    # Asegura los esquemas que cada módulo necesita (tablas auxiliares).
     # Si la BD no está disponible al arrancar, no impedimos el inicio.
     try:
         config_repository.ensure_schema()
+    except Exception:
+        pass
+    try:
+        premios_repository.ensure_premios_schema()
     except Exception:
         pass
 

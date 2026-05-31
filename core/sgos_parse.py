@@ -10,7 +10,7 @@ Reglas de negocio (acordadas con el usuario):
 - El id_unico evita duplicados y debe ser ESTABLE: si se sube el mismo Excel
   otra vez, debe generar exactamente el mismo id_unico.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 
@@ -130,3 +130,95 @@ def construir_id_unico(jornada, fecha, id_cliente, monto, voucher):
     jornada_iso = jornada.isoformat()          # date  -> "2026-01-01"
     fecha_iso = fecha.strftime("%Y-%m-%dT%H:%M:%S")  # datetime -> "2026-01-01T18:19:00"
     return f"{jornada_iso}_{fecha_iso}_{id_cliente}_{monto}_{voucher}"
+
+
+# ---------------------------------------------------------------------------
+# Helpers específicos del Excel de Premios
+# ---------------------------------------------------------------------------
+# El Excel de Premios es distinto al de Getnet:
+#   - La columna "Fecha" trae fecha Y hora reales del registro.
+#   - NO trae una columna "Jornada" lista: hay que CALCULARLA desde la hora.
+#   - El identificador único preferido es la columna "ID Mensaje".
+
+
+def normalizar_maquina(valor):
+    """Devuelve la Máquina como texto limpio (sin perder datos).
+
+    Puede llegar como número (ej: 12.0) o como texto. La dejamos como texto
+    sin la parte decimal que a veces agrega pandas (12.0 -> "12"). Una celda
+    vacía se devuelve como cadena vacía.
+    """
+    if _es_vacio(valor):
+        return ""
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    if isinstance(valor, int):
+        return str(valor)
+    return str(valor).strip()
+
+
+def limpiar_id_mensaje(valor):
+    """Limpia el "ID Mensaje" para usarlo como id_unico.
+
+    - Lo convertimos a texto.
+    - Quitamos espacios sobrantes.
+    - Quitamos la comilla simple inicial que Excel agrega para forzar texto
+      (ej: '123456 -> 123456).
+
+    Si viene vacío, devolvemos "" (el llamador decidirá la clave alternativa).
+    """
+    texto = limpiar_texto(valor)
+    if texto.startswith("'"):
+        texto = texto[1:]
+    return texto.strip()
+
+
+def calcular_jornada_premios(fecha):
+    """Calcula la jornada operativa a partir de la Fecha (con hora) del registro.
+
+    Regla de negocio: la jornada va de las 10:00 AM a las 09:00 AM del día
+    siguiente.
+      - Hora entre 10:00 y 23:59 -> la jornada es el MISMO día de la fecha.
+      - Hora entre 00:00 y 09:59 -> la jornada es el día ANTERIOR.
+
+    Ejemplos:
+      01/01/2026 10:30 -> 01/01/2026
+      01/01/2026 23:45 -> 01/01/2026
+      02/01/2026 00:30 -> 01/01/2026
+      02/01/2026 09:00 -> 01/01/2026
+      02/01/2026 10:00 -> 02/01/2026
+
+    Devuelve un objeto date (para guardar como DATE en la base).
+    """
+    if not isinstance(fecha, datetime):
+        raise ValueError("La fecha para calcular la jornada debe incluir la hora")
+    if fecha.hour >= 10:
+        return fecha.date()
+    # 00:00 a 09:59 -> pertenece a la jornada del día anterior.
+    return (fecha - timedelta(days=1)).date()
+
+
+def construir_id_unico_premios(
+    id_mensaje, fecha, jornada, maquina, cliente, transferencia_final, tipo_de_pago
+):
+    """Crea un id_unico ESTABLE para evitar registros de Premios duplicados.
+
+    Preferimos la columna "ID Mensaje" (ya limpia), que identifica el registro.
+    Si "ID Mensaje" viene vacío, construimos una clave combinando los datos del
+    registro. Normalizamos las fechas a formato ISO (YYYY-MM-DD) para que el
+    id_unico no cambie por diferencias de formato visual.
+
+    Es estable: al subir el mismo Excel otra vez, la misma fila genera el mismo
+    id_unico y se detecta como duplicado.
+    """
+    base = limpiar_id_mensaje(id_mensaje)
+    if base:
+        return base
+
+    # Fallback: combinación normalizada de los campos del registro.
+    fecha_iso = (fecha.date() if isinstance(fecha, datetime) else fecha).isoformat()
+    jornada_iso = jornada.isoformat()
+    return (
+        f"{fecha_iso}_{jornada_iso}_{maquina}_{cliente}_"
+        f"{transferencia_final}_{tipo_de_pago}"
+    )

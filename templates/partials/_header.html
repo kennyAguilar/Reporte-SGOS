@@ -16,7 +16,8 @@
        class="{{ 'active' if active == 'resumen' else '' }}">Resumen</a>
     <a href="{{ url_for('getnet.dashboard') }}"
        class="{{ 'active' if active == 'getnet' else '' }}">Getnet</a>
-    <a href="#" class="{{ 'active' if active == 'premios' else '' }}">Premios</a>
+    <a href="{{ url_for('premios.dashboard') }}"
+       class="{{ 'active' if active == 'premios' else '' }}">Premios</a>
     <a href="#" class="{{ 'active' if active == 'comps' else '' }}">Comps</a>
     <a href="#" class="{{ 'active' if active == 'analisis' else '' }}">Análisis general</a>
     <a href="#" class="{{ 'active' if active == 'control' else '' }}">Control</a>
@@ -28,7 +29,11 @@
   <button type="button" class="btn-secondary" id="btn-toggle-filtros"
           aria-controls="dashboard-layout" aria-expanded="true">
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M1 3h14v1.5l-5 4.5v5l-4-2v-3L1 4.5V3z"/></svg>Filtros</button>
-  <a href="{{ url_for('upload.upload') }}" class="btn-secondary">Cargar Excel</a>
+  {# El botón "Cargar Excel" es contextual: según la sección activa apunta a la
+     carga del módulo correspondiente. Si la sección no tiene carga propia, cae
+     por defecto a la carga Getnet. #}
+  {% set rutas_carga = {'getnet': 'upload.upload', 'premios': 'upload.upload_premios'} %}
+  <a href="{{ url_for(rutas_carga.get(active, 'upload.upload')) }}" class="btn-secondary">Cargar Excel</a>
   <button type="button" class="btn-primary" disabled title="Próximamente">Exportar a Excel</button>
   <span class="user-chip">
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 8a3 3 0 100-6 3 3 0 000 6zm0 1.5c-3 0-6 1.5-6 4V15h12v-1.5c0-2.5-3-4-6-4z"/></svg>

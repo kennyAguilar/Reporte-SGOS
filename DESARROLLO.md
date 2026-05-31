@@ -317,9 +317,93 @@ Los asistentes inactivos se excluyen en todas las consultas gracias al filtro
 
 ---
 
-## 11. Pendiente
+## 11. Módulo Premios ✅ (terminado)
 
-- [ ] Módulo **Premios** (mismo patrón que Getnet).
-- [ ] Módulo **COMPS** (mismo patrón que Getnet).
-- [ ] Módulo **Histórico** de Getnet (tabla paginada de operaciones).
+Módulo paralelo a Getnet para procesar y analizar los premios otorgados en las
+máquinas (jackpots). Sigue exactamente el mismo patrón: carga de Excel → tabla
+PostgreSQL → dashboard + histórico + record.
+
+### 11.1 La tabla `premios`
+
+| Columna | Tipo | Qué guarda |
+|---|---|---|
+| `id` | serial PK | identificador interno (automático) |
+| `id_unico` | text UNIQUE | clave para evitar duplicados |
+| `fecha` | **timestamp** | fecha **y hora** de la operación (necesario para analizar por hora) |
+| `jornada` | date | día de operación |
+| `maquina` | text | número/nombre de la máquina |
+| `cliente` | text | identificador del cliente |
+| `transferencia_final` | integer | monto del premio |
+| `slot_attendant` | text | asistente que atendió el premio |
+| `tipo_de_pago` | text | tipo de premio (Jackpot HP, Progressive Jackpot HP, etc.) |
+| `created_at` | timestamp | cuándo se cargó (automático) |
+
+> La columna `fecha` es `TIMESTAMP` (no `DATE`) para poder calcular *operaciones
+> por hora*. La tabla se llenó desde cero con el Excel para que la hora quedara
+> correctamente registrada.
+
+### 11.2 Regla de filtrado por tipo de pago
+
+A diferencia de Getnet, no todos los tipos de pago son "premios reales" en sentido
+monetario. Los tipos **Jackpot HP** y **Progressive Jackpot HP** son los que tienen
+`transferencia_final > 0`. La regla aplicada es:
+
+| Columna / bloque | ¿Qué tipos cuenta? |
+|---|---|
+| Conteo de operaciones | **Todos** los tipos |
+| Montos (`transferencia_final`) | **Solo** Jackpot HP + Progressive Jackpot HP |
+| Heatmap / distribución | **Todos** los tipos |
+
+Esta regla se aplica de forma **independiente por columna o gráfico**, no como un
+filtro global.
+
+### 11.3 Dashboard de Premios (`/premios`)
+
+Cinco gráficos + KPIs. Mismo layout que el Dashboard de Getnet.
+
+| Gráfico | Tipo | Filtrado |
+|---|---|---|
+| Operaciones por Mes | Barras (oro) | Todos los tipos |
+| Montos por Mes | Área (verde) | Solo HP — badge visible |
+| Operaciones por Hora | Barras (azul) | Todos los tipos |
+| Montos por Hora | Área (naranja) | Solo HP — badge visible |
+| Heatmap Día × Hora | Tabla de calor | Todos los tipos |
+
+Los gráficos de monto tienen un badge **"Solo premios HP"** para dejar claro el
+filtro aplicado. El donut de distribución por tipo cierra la sección.
+
+### 11.4 Histórico de Premios (`/premios/historico`)
+
+Tres bloques de análisis, cada uno con su `.info-note` explicando cómo se calcula:
+
+| Bloque | Qué muestra | Filtrado |
+|---|---|---|
+| **Resumen mensual** | Mes · Operaciones · Monto | Solo HP |
+| **Operaciones por hora** | Hora · Ops · Ops promedio · Montos · Montos promedio · hora pico | Ops=todos / Montos=HP |
+| **Conteo anual Mes × Máquina** | Fila por (Mes, Máquina) con columnas dinámicas por tipo + Monto premios | Conteo=todos / Monto=HP |
+
+Los promedios dividen el total entre la cantidad de **jornadas únicas** del
+periodo. La fila de la hora pico se resalta con `.pico-row` y un badge.
+
+### 11.5 Record Asistentes de Premios (`/premios/record-asistentes`)
+
+Cinco bloques paralelos al Record de Getnet, pero adaptados a las particularidades
+de los premios:
+
+| Bloque | Qué muestra |
+|---|---|
+| **Podio Top 3** | Los 3 asistentes con más premios en una sola jornada (🥇🥈🥉) |
+| **Resumen por asistente por tipo** | Columnas dinámicas: una por cada tipo de pago + mejor jornada con fecha |
+| **Transacciones por mes/año** | Tabla año × 12 meses por asistente |
+| **Total acumulado por año** | Asistente × año (últimas 5 columnas) |
+| **Distribución por tipo** | Donut de operaciones por tipo de pago |
+
+Solo aparecen filas donde `slot_attendant IS NOT NULL AND TRIM(slot_attendant) <> ''`.
+
+---
+
+## 12. Pendiente
+
+- [ ] Módulo **COMPS** (mismo patrón que Getnet / Premios).
+- [ ] Módulo **CoinIn**.
 - [ ] (Opcional) Aviso visual cuando una carga no agrega registros nuevos.

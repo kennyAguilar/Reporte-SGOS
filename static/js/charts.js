@@ -189,6 +189,17 @@
     crearDonut("chart-formas", datos.formas);
   }
 
+  // --- Distribución por tipo de pago (Premios · Record, barras oro) ---
+  if (datos.tipos) {
+    crearBarras(
+      "chart-tipos",
+      datos.tipos.labels,
+      datos.tipos.valores,
+      ORO,
+      "Transacciones"
+    );
+  }
+
   // --- Escala de color del mapa de calor ---
   // Cada celda recibe un fondo oro con opacidad proporcional a su valor
   // respecto al máximo de la tabla. Así las franjas activas resaltan.
