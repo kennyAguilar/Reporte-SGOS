@@ -204,12 +204,15 @@ vistas accesibles desde un sub-menú:
 
 ### 7.1 KPIs del Dashboard
 
-Cuatro tarjetas resumen en la parte superior:
+Cuatro tarjetas en la parte superior, calculadas por `get_kpis_dashboard()` y
+respetuosas de los filtros activos:
 
-- **Mes cargado** — último mes con datos.
-- **Hasta jornada** — última jornada registrada.
-- **Monto total acumulado** — suma de todos los montos del filtro activo.
-- **Última jornada** — monto solo del último día.
+| Tarjeta | Qué muestra |
+|---|---|
+| **Operaciones** | Total de operaciones · días contados · promedio por día |
+| **Monto total** | Suma acumulada · ticket promedio por operación |
+| **Hora pico** | Franja horaria con más operaciones · promedio de ops en esa hora |
+| **Débito / Crédito** | Donut (arandela) con % por `forma_pago`; leyenda debajo; tooltip muestra ops y monto |
 
 ### 7.2 Gráficos (Chart.js)
 
@@ -221,6 +224,7 @@ Cuatro gráficos construidos con **Chart.js**:
 | Montos por Mes | Área (verde) | Suma de montos por mes |
 | Operaciones por Hora (promedio) | Barras (azul) | Promedio de operaciones por franja horaria |
 | Montos por Hora (promedio) | Área (naranja) | Promedio de montos por franja horaria |
+| Débito / Crédito | Donut / arandela | % de operaciones por forma de pago; tooltip con monto |
 
 Los gráficos se dibujan con `responsive: true` y `maintainAspectRatio: false` para
 que llenen el ancho del contenedor. Los datos llegan embebidos en el HTML como JSON
@@ -272,11 +276,50 @@ todos los gráficos, KPIs y el mapa de calor se recalculan con el rango seleccio
 | Inserción por lotes (`execute_values`) | Mucho más rápido que fila por fila. |
 | Contenedor de altura fija para Chart.js | Evita el bug de crecimiento vertical infinito en modo responsive. |
 | Datos de gráficos embebidos en JSON | Evita peticiones AJAX adicionales; el template ya tiene los datos. |
+| KPIs calculados en `get_kpis_dashboard()` | Una sola función de repositorio para las 4 tarjetas; reutiliza `_where()` y los filtros. |
+| Donut de formas de pago con leyenda abajo | La leyenda lateral tapaba el tooltip de Chart.js; colocarla debajo la libera. |
+| Columnas fijas de 5 años en "Total acumulado" | Muestra siempre el rango 2022–2026 aunque no haya datos, para comparar evolución. |
+| `_FILTRO_ACTIVOS` en todas las queries Getnet | Los asistentes desactivados desde Configuración no contaminan ningún gráfico ni ranking. |
 
 ---
 
-## 9. Pendiente
+---
+
+## 9. Record Asistentes ✅ (terminado)
+
+Sección accesible desde el sub-menú de Getnet (`/getnet/record-asistentes`). Muestra
+el rendimiento histórico de cada slot attendant. Respeta todos los filtros del header.
+
+| Bloque | Qué muestra |
+|---|---|
+| **Podio Top 3** | Asistentes con el mayor número de operaciones en una sola jornada (🥇🥈🥉 + tabla del resto) |
+| **Resumen por asistente** | Total de ops, ticket promedio, franja horaria más activa, mejor jornada |
+| **Transacciones por mes/año** | Una tabla por año con los 12 meses como columnas; asistentes como filas |
+| **Total acumulado por año** | Tabla asistente × año; siempre muestra las últimas 5 columnas (años sin datos = 0) |
+
+Each block includes an `.info-note` legend explaining the calculation.
+
+---
+
+## 10. Configuración ✅ (solo admin)
+
+Sección accesible desde el engranaje ⚙️ del header (solo visible para admins).
+Ruta: `/configuracion`.
+
+| Pestaña | Qué permite |
+|---|---|
+| Asistentes | Activar o desactivar un slot attendant (los inactivos no aparecen en ningún gráfico) |
+| Usuarios | Ver la lista de usuarios y crear nuevos |
+| Contraseña | Cambiar la propia contraseña |
+
+Los asistentes inactivos se excluyen en todas las consultas gracias al filtro
+`_FILTRO_ACTIVOS` en `getnet_repository.py`.
+
+---
+
+## 11. Pendiente
 
 - [ ] Módulo **Premios** (mismo patrón que Getnet).
 - [ ] Módulo **COMPS** (mismo patrón que Getnet).
+- [ ] Módulo **Histórico** de Getnet (tabla paginada de operaciones).
 - [ ] (Opcional) Aviso visual cuando una carga no agrega registros nuevos.

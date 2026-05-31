@@ -27,13 +27,15 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 │   ├── auth.py                 # Blueprint: /login, /logout
 │   ├── home.py                 # Blueprint: / (resumen general)
 │   ├── getnet.py               # Blueprint: /getnet (dashboard, histórico, record)
-│   └── upload.py               # Blueprint: /upload (carga de Excel)
+│   ├── upload.py               # Blueprint: /upload (carga de Excel)
+│   └── config.py               # Blueprint: /configuracion (admin — asistentes y usuarios)
 ├── repositories/
 │   ├── usuarios_repository.py
 │   ├── getnet_repository.py
 │   ├── premios_repository.py
 │   ├── comps_repository.py
-│   └── upload_repository.py
+│   ├── upload_repository.py
+│   └── config_repository.py
 ├── templates/
 │   ├── base.html
 │   ├── login.html
@@ -41,7 +43,10 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 │   ├── upload.html
 │   ├── getnet/
 │   │   ├── dashboard.html
+│   │   ├── record.html
 │   │   └── placeholder.html
+│   ├── config/
+│   │   └── index.html
 │   ├── partials/
 │   │   ├── _header.html
 │   │   └── _filters.html
@@ -54,6 +59,7 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 │   │   ├── base.css
 │   │   ├── dashboard.css
 │   │   ├── getnet.css
+│   │   ├── config.css
 │   │   └── login.css
 │   └── js/
 │       ├── charts.js           # Chart.js: gráficos del dashboard Getnet
@@ -134,11 +140,11 @@ La aplicación usa Neon.tech (PostgreSQL serverless). La tabla principal de usua
 | Login / Sesión | ✅ Implementado |
 | Home / Resumen KPIs | ✅ Implementado |
 | Getnet — Carga de Excel | ✅ Implementado |
-| Getnet — Dashboard (KPIs + gráficos + mapa de calor) | ✅ Implementado |
+| Getnet — Dashboard (KPIs + gráficos + mapa de calor + donut formas de pago) | ✅ Implementado |
 | Getnet — Histórico | ✅ Implementado |
-| Getnet — Record Asistentes | ✅ Implementado |
+| Getnet — Record Asistentes (podio, resumen, transacciones, total acumulado) | ✅ Implementado |
+| Configuración (gestión de asistentes y usuarios — solo admin) | ✅ Implementado |
 | Premios | 📋 Pendiente |
 | COMPS | 📋 Pendiente |
 | CoinIn | 📋 Pendiente |
-| Gestión de usuarios | 📋 Pendiente |
 
