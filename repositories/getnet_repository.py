@@ -10,6 +10,15 @@ from core.formato import fecha_corta, fecha_hora, mes_anio_es, mes_ingles, miles
 
 TABLE = "getnet"
 
+# Excluye de TODAS las estadísticas de Getnet a los slot attendants marcados
+# como inactivos en el apartado de Configuración. Los que no están en la tabla
+# `slot_attendants` se consideran activos por defecto. Se usa NOT EXISTS para
+# que la consulta no falle aunque la tabla aún no exista (LEFT semantics).
+_FILTRO_ACTIVOS = (
+    "slot_attendant NOT IN "
+    "(SELECT nombre FROM slot_attendants WHERE activo = false)"
+)
+
 
 def insertar_filas(filas):
     """Inserta filas en la tabla getnet evitando duplicados.
@@ -82,6 +91,7 @@ def get_resumen(anio=None, mes=None, nombre=None):
     if nombre:
         filtros.append("slot_attendant ILIKE %s")
         params.append(f"%{nombre}%")
+    filtros.append(_FILTRO_ACTIVOS)
 
     where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
 
@@ -167,6 +177,7 @@ def _where(anio=None, mes=None, nombre=None):
     if nombre:
         filtros.append("slot_attendant ILIKE %s")
         params.append(f"%{nombre}%")
+    filtros.append(_FILTRO_ACTIVOS)
     where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
     return where, params
 

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/config.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "config" %}
+{% include "partials/_header.html" with context %}
+
+<main class="config-main">
+  <div class="module-head">
+    <div class="module-eyebrow">Sistema</div>
+    <h2>Configuración</h2>
+  </div>
+
+  {# Pestañas de las tres secciones #}
+  <nav class="submenu">
+    <a href="{{ url_for('config.index', seccion='slots') }}"
+       class="{{ 'active' if seccion == 'slots' else '' }}">Slots activos</a>
+    <a href="{{ url_for('config.index', seccion='usuarios') }}"
+       class="{{ 'active' if seccion == 'usuarios' else '' }}">Gestión de usuarios</a>
+    <a href="{{ url_for('config.index', seccion='password') }}"
+       class="{{ 'active' if seccion == 'password' else '' }}">Cambiar contraseña</a>
+  </nav>
+
+  {# --- Sección: Slots activos --- #}
+  {% if seccion == 'slots' %}
+    <section class="config-card">
+      <h3>Slots activos</h3>
+      <p class="config-help">
+        Los slot attendants <strong>desactivados</strong> dejan de contar en todas
+        las estadísticas de Getnet (KPIs, gráficos y mapa de calor). Útil cuando una
+        persona ya no tiene contrato. Por defecto todos están activos.
+      </p>
+
+      {% if slots %}
+        <table class="config-table">
+          <thead>
+            <tr>
+              <th>Slot attendant</th>
+              <th class="num">Operaciones</th>
+              <th class="estado">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in slots %}
+              <tr class="{{ '' if s.activo else 'is-inactive' }}">
+                <td>{{ s.nombre }}</td>
+                <td class="num">{{ s.operaciones }}</td>
+                <td class="estado">
+                  <form method="post" action="{{ url_for('config.toggle_slot') }}">
+                    <input type="hidden" name="nombre" value="{{ s.nombre }}">
+                    <input type="hidden" name="activo" value="{{ 'false' if s.activo else 'true' }}">
+                    <label class="switch">
+                      <input type="checkbox" {{ 'checked' if s.activo else '' }}
+                             onchange="this.form.submit()">
+                      <span class="slider"></span>
+                    </label>
+                    <span class="estado-label">{{ 'Activo' if s.activo else 'Inactivo' }}</span>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">No hay slot attendants registrados en Getnet.</div>
+      {% endif %}
+    </section>
+
+  {# --- Sección: Gestión de usuarios --- #}
+  {% elif seccion == 'usuarios' %}
+    <section class="config-card">
+      <h3>Crear usuario</h3>
+      <form method="post" action="{{ url_for('config.crear_usuario') }}" class="config-form">
+        <div class="field">
+          <label for="u-username">Usuario</label>
+          <input type="text" name="username" id="u-username" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="u-password">Contraseña</label>
+          <input type="password" name="password" id="u-password" required autocomplete="new-password">
+        </div>
+        <div class="switch-row">
+          <span>Administrador</span>
+          <label class="switch">
+            <input type="checkbox" name="is_admin">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <button type="submit" class="btn-primary">Crear usuario</button>
+      </form>
+    </section>
+
+    <section class="config-card">
+      <h3>Usuarios del sistema</h3>
+      {% if usuarios %}
+        <table class="config-table">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Rol</th>
+              <th>Último ingreso</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in usuarios %}
+              <tr>
+                <td>{{ u.username }}</td>
+                <td>{{ 'Administrador' if u.is_admin else 'Usuario' }}</td>
+                <td>{{ u.last_login_at.strftime('%d/%m/%Y %H:%M') if u.last_login_at else '—' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">No hay usuarios registrados.</div>
+      {% endif %}
+    </section>
+
+  {# --- Sección: Cambiar contraseña --- #}
+  {% elif seccion == 'password' %}
+    <section class="config-card">
+      <h3>Cambiar contraseña</h3>
+      <p class="config-help">Restablece la clave de cualquier usuario del sistema.</p>
+      <form method="post" action="{{ url_for('config.cambiar_password') }}" class="config-form">
+        <div class="field">
+          <label for="p-username">Usuario</label>
+          <select name="username" id="p-username" required>
+            <option value="">Selecciona…</option>
+            {% for u in usuarios %}
+              <option value="{{ u.username }}">{{ u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-password">Nueva contraseña</label>
+          <input type="password" name="password" id="p-password" required autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label for="p-password2">Repetir contraseña</label>
+          <input type="password" name="password2" id="p-password2" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn-primary">Actualizar contraseña</button>
+      </form>
+    </section>
+  {% endif %}
+</main>
+{% endblock %}

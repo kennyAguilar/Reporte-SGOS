@@ -1,0 +1,172 @@
+/* SGOS — Apartado de Configuración.
+   Reutiliza variables Carbon (carbon-theme.css), el switch de dashboard.css y
+   los botones de base.css. Aquí van el layout, el sub-menú de pestañas, las
+   tarjetas y las tablas de la página. */
+
+.config-main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+/* Sub-menú de pestañas (mismo estilo que el dashboard de Getnet). */
+.config-main .submenu {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--layer-03);
+  margin-bottom: 24px;
+}
+
+.config-main .submenu a {
+  padding: 10px 16px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.config-main .submenu a:hover {
+  color: var(--text-primary);
+  background: var(--layer-01);
+}
+
+.config-main .submenu a.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--gold);
+}
+
+/* Tarjetas */
+.config-card {
+  background: var(--layer-01);
+  border: 1px solid var(--layer-02);
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.config-card h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.config-help {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Formularios */
+.config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 360px;
+}
+
+.config-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-form label {
+  font-size: 12px;
+  color: var(--text-helper);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.config-form input,
+.config-form select {
+  height: 36px;
+  padding: 0 10px;
+  background: var(--layer-02);
+  border: 1px solid var(--layer-03);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.config-form input:focus,
+.config-form select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.config-form .btn-primary {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.config-form .switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 200px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Tablas */
+.config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.config-table th,
+.config-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--layer-02);
+}
+
+.config-table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-helper);
+  font-weight: 600;
+}
+
+.config-table td {
+  color: var(--text-primary);
+}
+
+.config-table th.num,
+.config-table td.num {
+  text-align: right;
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-feature-settings: "tnum";
+}
+
+.config-table td.estado form {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.config-table .estado-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.config-table tr.is-inactive td {
+  color: var(--text-helper);
+}
+
+/* Botón de solo icono (engranaje del header) */
+.btn-icon {
+  padding: 0 8px;
+}
+
+.btn-icon svg {
+  margin-right: 0;
+}
+
+.btn-icon.active {
+  border-color: var(--gold);
+  color: var(--gold);
+}
