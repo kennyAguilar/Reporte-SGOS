@@ -20,25 +20,44 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 ├── config.py                   # Configuración (SECRET_KEY, DATABASE_URL, etc.)
 ├── core/
 │   ├── auth.py                 # login_required, current_user()
-│   └── database.py             # get_connection() → Neon PostgreSQL
+│   ├── database.py             # get_connection() → Neon PostgreSQL
+│   ├── formato.py              # Helpers de formato (pesos, fechas)
+│   └── sgos_parse.py           # Limpieza y normalización de Excel
 ├── modules/
 │   ├── auth.py                 # Blueprint: /login, /logout
-│   └── home.py                 # Blueprint: / (protegido)
+│   ├── home.py                 # Blueprint: / (resumen general)
+│   ├── getnet.py               # Blueprint: /getnet (dashboard, histórico, record)
+│   └── upload.py               # Blueprint: /upload (carga de Excel)
 ├── repositories/
-│   └── usuarios_repository.py  # Consultas SQL de la tabla users
+│   ├── usuarios_repository.py
+│   ├── getnet_repository.py
+│   ├── premios_repository.py
+│   ├── comps_repository.py
+│   └── upload_repository.py
 ├── templates/
 │   ├── base.html
 │   ├── login.html
 │   ├── home.html
+│   ├── upload.html
+│   ├── getnet/
+│   │   ├── dashboard.html
+│   │   └── placeholder.html
+│   ├── partials/
+│   │   ├── _header.html
+│   │   └── _filters.html
 │   └── errors/
 │       ├── 404.html
 │       └── 500.html
 ├── static/
 │   ├── css/
 │   │   ├── carbon-theme.css
-│   │   ├── login.css
-│   │   └── base.css
+│   │   ├── base.css
+│   │   ├── dashboard.css
+│   │   ├── getnet.css
+│   │   └── login.css
 │   └── js/
+│       ├── charts.js           # Chart.js: gráficos del dashboard Getnet
+│       ├── filters.js          # Sidebar de filtros (año/mes)
 │       └── login.js
 ├── set_password.py             # Utilidad: restablecer contraseña de usuario
 ├── requirements.txt
@@ -113,8 +132,11 @@ La aplicación usa Neon.tech (PostgreSQL serverless). La tabla principal de usua
 | Módulo | Estado |
 |---|---|
 | Login / Sesión | ✅ Implementado |
-| Home / Resumen KPIs | 🔄 En desarrollo |
-| Getnet (transacciones) | 📋 Pendiente |
+| Home / Resumen KPIs | ✅ Implementado |
+| Getnet — Carga de Excel | ✅ Implementado |
+| Getnet — Dashboard (KPIs + gráficos + mapa de calor) | ✅ Implementado |
+| Getnet — Histórico | ✅ Implementado |
+| Getnet — Record Asistentes | ✅ Implementado |
 | Premios | 📋 Pendiente |
 | COMPS | 📋 Pendiente |
 | CoinIn | 📋 Pendiente |

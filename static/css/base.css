@@ -39,10 +39,25 @@
 }
 
 .app-header .user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 6px 12px;
   background: var(--layer-02);
   color: var(--text-secondary);
   font-size: 13px;
+}
+
+.app-header .user-chip svg,
+.btn-secondary svg,
+.btn-primary svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.btn-secondary svg {
+  margin-right: 6px;
 }
 
 .btn-secondary {
@@ -96,6 +111,18 @@
 .btn-primary:active {
   background: var(--gold-active);
   border-color: var(--gold-active);
+}
+
+.btn-primary[disabled],
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-primary[disabled]:hover,
+.btn-primary:disabled:hover {
+  background: var(--gold);
+  border-color: var(--gold);
 }
 
 .btn-outline {

@@ -8,102 +8,12 @@
 {% endblock %}
 
 {% block body %}
-<header class="app-header">
-  <div class="brand-logo">S</div>
-  <div class="brand-text">
-    <small>Mesa Operativa</small>
-    <strong>SGOS Reportes</strong>
-  </div>
-
-  <nav class="app-nav">
-    <a href="{{ url_for('home.index') }}" class="active">Resumen</a>
-    <a href="#">Getnet</a>
-    <a href="#">Premios</a>
-    <a href="#">Comps</a>
-    <a href="#">Análisis general</a>
-    <a href="#">Control</a>
-    <a href="#">CoinIn Cero</a>
-  </nav>
-
-  <div class="spacer"></div>
-
-  <button type="button" class="btn-secondary" id="btn-toggle-filtros"
-          aria-controls="dashboard-layout" aria-expanded="true">Filtros</button>
-  <button type="button" class="btn-secondary" disabled title="Próximamente">Cargar Excel</button>
-  <button type="button" class="btn-secondary" disabled title="Próximamente">Exportar a Excel</button>
-  <span class="user-chip">{{ user.username }}</span>
-  <a class="btn-secondary" href="{{ url_for('auth.logout') }}">Salir</a>
-</header>
+{% set active = "resumen" %}
+{% set filter_action = url_for('home.index') %}
+{% include "partials/_header.html" with context %}
 
 <div class="dashboard-layout" id="dashboard-layout">
-  <!-- Panel de filtros retráctil -->
-  <aside class="filters-panel" id="filters-panel">
-    <form method="get" action="{{ url_for('home.index') }}" id="filters-form">
-      <h2>Filtros</h2>
-
-      <div class="field">
-        <label for="f-anio">Año</label>
-        <select name="anio" id="f-anio">
-          <option value="">Todos</option>
-          {% for a in anios %}
-            <option value="{{ a }}" {{ 'selected' if filtros.anio == a|string else '' }}>{{ a }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="f-mes">Mes</label>
-        <select name="mes" id="f-mes">
-          <option value="">Todos</option>
-          {% for num, nom in meses %}
-            <option value="{{ num }}" {{ 'selected' if filtros.mes == num|string else '' }}>{{ nom }}</option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="f-nombre">Nombre</label>
-        <input type="text" name="nombre" id="f-nombre"
-               value="{{ filtros.nombre }}" placeholder="Slot attendant / cliente">
-      </div>
-
-      <div class="filters-actions">
-        <button type="submit" class="btn-primary">Aplicar</button>
-        <button type="button" class="btn-outline" id="btn-todos">Todos</button>
-      </div>
-      <div class="filters-actions">
-        <button type="button" class="btn-outline" id="btn-ninguno">Ninguno</button>
-      </div>
-
-      <div class="filters-section">
-        <h3>Vista</h3>
-        <div class="switch-row">
-          <span>Filas totales</span>
-          <label class="switch">
-            <input type="checkbox" name="filas_totales"
-                   {{ 'checked' if filtros.filas_totales else '' }}>
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="filters-section">
-        <h3>Último archivo</h3>
-        {% if ultimo_archivo %}
-          <div class="last-file-card">
-            <div class="label">Archivo</div>
-            <div class="name">{{ ultimo_archivo.archivo }}</div>
-            <div class="date">{{ ultimo_archivo.fecha }}</div>
-          </div>
-        {% else %}
-          <div class="last-file-card">
-            <div class="label">Archivo</div>
-            <div class="name">Sin cargas registradas</div>
-          </div>
-        {% endif %}
-      </div>
-    </form>
-  </aside>
+  {% include "partials/_filters.html" with context %}
 
   <!-- Contenido principal -->
   <main class="dashboard-main">
@@ -126,7 +36,7 @@
             <div class="kpi-sub">Última jornada registrada</div>
           </div>
           <div class="kpi-card kpi-card--accent">
-            <div class="kpi-label">Monto total del mes</div>
+            <div class="kpi-label">Monto total acumulado</div>
             <div class="kpi-value financiero">{{ getnet.total_valor }}</div>
             <div class="kpi-sub">{{ getnet.total_label }}</div>
           </div>
@@ -160,7 +70,7 @@
             <div class="kpi-sub">Última jornada registrada</div>
           </div>
           <div class="kpi-card kpi-card--accent">
-            <div class="kpi-label">Monto total del mes</div>
+            <div class="kpi-label">Monto total acumulado</div>
             <div class="kpi-value financiero">{{ premios.total_valor }}</div>
             <div class="kpi-sub">{{ premios.total_label }}</div>
           </div>

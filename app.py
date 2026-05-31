@@ -3,7 +3,9 @@ from flask import Flask, render_template
 
 from config import Config
 from modules.auth import auth_bp
+from modules.getnet import getnet_bp
 from modules.home import home_bp
+from modules.upload import upload_bp
 
 
 def create_app():
@@ -12,6 +14,8 @@ def create_app():
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(home_bp)
+    app.register_blueprint(getnet_bp)
+    app.register_blueprint(upload_bp)
 
     @app.errorhandler(404)
     def not_found(error):

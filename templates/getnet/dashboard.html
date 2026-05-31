@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Getnet · Dashboard — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "getnet" %}
+{% set filter_action = url_for('getnet.dashboard') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Getnet #}
+    <nav class="submenu">
+      <a href="{{ url_for('getnet.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('getnet.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('getnet.record_asistentes') }}"
+         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Getnet</div>
+      <h2>Dashboard</h2>
+    </div>
+
+    {# KPIs rápidos (reutilizan get_resumen) #}
+    {% if resumen %}
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Mes cargado</div>
+          <div class="kpi-value">{{ resumen.mes_cargado }}</div>
+          <div class="kpi-sub">{{ resumen.fecha_carga }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Hasta jornada</div>
+          <div class="kpi-value">{{ resumen.hasta_jornada }}</div>
+          <div class="kpi-sub">Última jornada registrada</div>
+        </div>
+        <div class="kpi-card kpi-card--accent">
+          <div class="kpi-label">Monto total acumulado</div>
+          <div class="kpi-value financiero">{{ resumen.total_valor }}</div>
+          <div class="kpi-sub">{{ resumen.total_label }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Última jornada</div>
+          <div class="kpi-value financiero">{{ resumen.ultima_valor }}</div>
+          <div class="kpi-sub">{{ resumen.ultima_label }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    {# Leyenda de cálculos #}
+    <section class="legend-card">
+      <h3 class="legend-title">📒 Leyenda de cálculos</h3>
+      <div class="legend-grid">
+        <div>
+          <strong>Base de datos</strong>
+          <p>Getnet usa las operaciones históricas cargadas. El filtro de año y mes limita todos los gráficos.</p>
+        </div>
+        <div>
+          <strong>Operaciones por Mes</strong>
+          <p>Cuenta operaciones válidas agrupadas por Mes.</p>
+        </div>
+        <div>
+          <strong>Montos por Mes</strong>
+          <p>Suma la columna Monto agrupada por Mes.</p>
+        </div>
+        <div>
+          <strong>Promedios por Hora</strong>
+          <p>Agrupa por Hora en jornada 10:00 a 08:00 y divide operaciones o monto entre las jornadas únicas del periodo.</p>
+        </div>
+        <div>
+          <strong>Mapa de calor</strong>
+          <p>Cada celda Día × Hora divide el total de esa franja entre la cantidad de jornadas de ese día de la semana.</p>
+        </div>
+      </div>
+    </section>
+
+    {% if not resumen %}
+      <div class="empty-state">No hay datos de Getnet para este filtro. Carga un archivo o ajusta los filtros.</div>
+    {% else %}
+      {# Fila 1: por mes #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>☑️ Operaciones por Mes</h3>
+          {% if ops_mes %}
+            <div class="chart-box"><canvas id="chart-ops-mes"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>$ Montos por Mes</h3>
+          {% if montos_mes %}
+            <div class="chart-box"><canvas id="chart-montos-mes"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Fila 2: por hora (promedio) #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🕒 Operaciones por Hora (Promedio)</h3>
+          {% if promedio_hora %}
+            <div class="chart-box"><canvas id="chart-ops-hora"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>💳 Montos por Hora (Promedio)</h3>
+          {% if promedio_hora %}
+            <div class="chart-box"><canvas id="chart-montos-hora"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Mapa de calor Día × Hora #}
+      <section class="chart-card heatmap-card">
+        <div class="heatmap-head">
+          <h3>▦ Mapa de Calor · Día × Hora <span class="badge">Promedio</span></h3>
+        </div>
+        {% if heatmap %}
+          <div class="info-note">
+            ℹ️ <strong>¿Cómo se calcula el promedio?</strong> Cada celda muestra el
+            <em>promedio por jornada</em>: se suman todas las operaciones ocurridas en
+            esa franja horaria de ese día de la semana y se dividen entre la cantidad de
+            fechas únicas de ese día presentes en los datos.
+          </div>
+          <div class="heatmap-chips">
+            <span class="chip">Rango: {{ heatmap.rango_inicio }} → {{ heatmap.rango_fin }}</span>
+            <span class="chip">Jornadas: {{ heatmap.total_jornadas }}</span>
+            {% for dia, n in heatmap.jornadas_por_dia.items() %}
+              <span class="chip chip--muted">{{ dia[:3] }}: {{ n }}</span>
+            {% endfor %}
+          </div>
+          <div class="heatmap-scroll">
+            <table class="heatmap">
+              <thead>
+                <tr>
+                  <th class="corner"></th>
+                  {% for h in heatmap.horas %}<th>{{ h }}</th>{% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for dia in heatmap.dias %}
+                  <tr>
+                    <th class="rowhead">{{ dia }}</th>
+                    {% for valor in heatmap.matriz[loop.index0] %}
+                      <td class="hcell" data-valor="{{ valor }}">{{ '%.1f'|format(valor) }}</td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos para el mapa de calor.</div>
+        {% endif %}
+      </section>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="getnet-data" type="application/json">
+        {{ {
+          "ops_mes": ops_mes,
+          "montos_mes": montos_mes,
+          "promedio_hora": promedio_hora
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  {% if resumen %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}

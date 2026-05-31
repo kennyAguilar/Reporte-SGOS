@@ -43,3 +43,27 @@ def get_ultimo_archivo(tipo=None):
             }
     finally:
         conn.close()
+
+
+def registrar_carga(tipo, archivo, usuario, rows_total, rows_inserted, rows_skipped):
+    """Guarda en upload_log un registro de la carga realizada.
+
+    - tipo: módulo de la carga (ej: "getnet").
+    - archivo: nombre del archivo subido.
+    - usuario: quién hizo la carga.
+    - rows_total / rows_inserted / rows_skipped: resumen de la carga.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                INSERT INTO {TABLE}
+                    (tipo, archivo, usuario, rows_total, rows_inserted, rows_skipped)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (tipo, archivo, usuario, rows_total, rows_inserted, rows_skipped),
+            )
+        conn.commit()
+    finally:
+        conn.close()

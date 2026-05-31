@@ -12,3 +12,9 @@ uploads/
 
 # IDE
 .vscode/
+
+# Archivos de datos y capturas locales
+*.xlsx
+*.xls
+*.png
+*.jpg

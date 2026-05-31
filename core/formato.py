@@ -45,6 +45,20 @@ def mes_ingles(d):
     return f"{MESES_EN[d.month]} {d.year}"
 
 
+def mes_anio_es(d):
+    """Mes y año en español, capitalizado: 'Abril 2025' (para ejes de gráficos)."""
+    if not d:
+        return ""
+    return f"{MESES_ES[d.month].capitalize()} {d.year}"
+
+
+def fecha_corta(d):
+    """Fecha corta numérica: '01/01/2026' (día/mes/año)."""
+    if not d:
+        return ""
+    return d.strftime("%d/%m/%Y")
+
+
 def fecha_hora(dt):
     """Fecha y hora de carga: '21/05/2026 22:51'."""
     if not dt:

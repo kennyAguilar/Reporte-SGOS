@@ -1,0 +1,75 @@
+{# Panel de filtros retráctil reutilizable.
+   Variables esperadas:
+   - filter_action: URL a la que se envía el formulario (la ruta del módulo
+                    actual), para que filtrar mantenga al usuario en su menú.
+   - filtros: dict con anio, mes, nombre, filas_totales (valores actuales).
+   - anios:   lista de años disponibles.
+   - meses:   lista de tuplas (numero, nombre).
+   - ultimo_archivo: card informativa de la última carga (opcional). #}
+<aside class="filters-panel" id="filters-panel">
+  <form method="get" action="{{ filter_action }}" id="filters-form">
+    <h2>Filtros</h2>
+
+    <div class="field">
+      <label for="f-anio">Año</label>
+      <select name="anio" id="f-anio">
+        <option value="">Todos</option>
+        {% for a in anios %}
+          <option value="{{ a }}" {{ 'selected' if filtros.anio == a|string else '' }}>{{ a }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="f-mes">Mes</label>
+      <select name="mes" id="f-mes">
+        <option value="">Todos</option>
+        {% for num, nom in meses %}
+          <option value="{{ num }}" {{ 'selected' if filtros.mes == num|string else '' }}>{{ nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="f-nombre">Nombre</label>
+      <input type="text" name="nombre" id="f-nombre"
+             value="{{ filtros.nombre }}" placeholder="Slot attendant / cliente">
+    </div>
+
+    <div class="filters-actions">
+      <button type="submit" class="btn-primary">Aplicar</button>
+      <button type="button" class="btn-outline" id="btn-todos">Todos</button>
+    </div>
+    <div class="filters-actions">
+      <button type="button" class="btn-outline" id="btn-ninguno">Ninguno</button>
+    </div>
+
+    <div class="filters-section">
+      <h3>Vista</h3>
+      <div class="switch-row">
+        <span>Filas totales</span>
+        <label class="switch">
+          <input type="checkbox" name="filas_totales"
+                 {{ 'checked' if filtros.filas_totales else '' }}>
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="filters-section">
+      <h3>Último archivo</h3>
+      {% if ultimo_archivo %}
+        <div class="last-file-card">
+          <div class="label">Archivo</div>
+          <div class="name">{{ ultimo_archivo.archivo }}</div>
+          <div class="date">{{ ultimo_archivo.fecha }}</div>
+        </div>
+      {% else %}
+        <div class="last-file-card">
+          <div class="label">Archivo</div>
+          <div class="name">Sin cargas registradas</div>
+        </div>
+      {% endif %}
+    </div>
+  </form>
+</aside>

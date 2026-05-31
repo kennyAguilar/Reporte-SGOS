@@ -1,0 +1,199 @@
+/* SGOS — Dashboard de Getnet
+   Estilos del sub-menú, tarjetas de gráficos, leyenda y mapa de calor.
+   Paleta Carbon Gray 100 + acento oro (#d4af37), consistente con DESIGN.md. */
+
+/* --- Sub-menú del módulo (Dashboard | Histórico | Record Asistentes) --- */
+.submenu {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #393939;
+  margin-bottom: 24px;
+}
+
+.submenu a {
+  padding: 10px 16px;
+  color: #c6c6c6;
+  text-decoration: none;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.submenu a:hover {
+  color: #f4f4f4;
+  background: #262626;
+}
+
+.submenu a.active {
+  color: #f4f4f4;
+  border-bottom-color: #d4af37;
+}
+
+/* --- Leyenda de cálculos --- */
+.legend-card {
+  background: #21272a;
+  border: 1px solid #393939;
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin: 8px 0 24px;
+}
+
+.legend-title {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #d4af37;
+}
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px 24px;
+}
+
+.legend-grid strong {
+  display: block;
+  font-size: 13px;
+  color: #f4f4f4;
+  margin-bottom: 4px;
+}
+
+.legend-grid p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #8d8d8d;
+}
+
+/* --- Tarjetas de gráficos --- */
+.charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.chart-card {
+  background: #262626;
+  border: 1px solid #393939;
+  border-radius: 4px;
+  padding: 20px 24px;
+}
+
+.chart-card h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  color: #f4f4f4;
+}
+
+/* Contenedor de altura fija: evita el crecimiento vertical infinito de
+   Chart.js (responsive + maintainAspectRatio:false necesita un alto acotado). */
+.chart-box {
+  position: relative;
+  width: 100%;
+  height: 260px;
+}
+
+.chart-card canvas {
+  position: absolute;
+  inset: 0;
+}
+
+@media (max-width: 980px) {
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- Mapa de calor --- */
+.heatmap-card {
+  margin-top: 8px;
+}
+
+.heatmap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badge {
+  display: inline-block;
+  background: #d4af37;
+  color: #161616;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+
+.info-note {
+  background: #1c2a33;
+  border: 1px solid #2d4450;
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c6c6c6;
+  margin-bottom: 16px;
+}
+
+.heatmap-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.chip {
+  background: #393939;
+  color: #f4f4f4;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.chip--muted {
+  background: #2a2a2a;
+  color: #c6c6c6;
+}
+
+.heatmap-scroll {
+  overflow-x: auto;
+}
+
+.heatmap {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+}
+
+.heatmap th,
+.heatmap td {
+  text-align: center;
+  padding: 6px 4px;
+  white-space: nowrap;
+}
+
+.heatmap thead th {
+  color: #8d8d8d;
+  font-weight: 500;
+}
+
+.heatmap th.rowhead {
+  text-align: right;
+  padding-right: 10px;
+  color: #c6c6c6;
+  font-weight: 500;
+}
+
+.heatmap th.corner {
+  width: 70px;
+}
+
+.heatmap td.hcell {
+  color: #f4f4f4;
+  background: #1f1f1f;
+  border: 1px solid #161616;
+  min-width: 34px;
+  /* El color de fondo lo aplica charts.js según el valor (escala oro). */
+}
