@@ -202,7 +202,7 @@
                   <tr>
                     <td class="rank">{{ loop.index }}</td>
                     <td>{{ fila.nombre }}</td>
-                    {% for v in fila.valores %}<td class="num">{{ v }}</td>{% endfor %}
+                    {% for v in fila.valores %}<td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>{% endfor %}
                     <td class="num total-col">{{ fila.total }}</td>
                   </tr>
                 {% endfor %}

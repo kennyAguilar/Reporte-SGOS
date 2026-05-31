@@ -3,6 +3,8 @@
 Columnas reales: id, id_unico (unique), jornada (date), fecha (timestamp),
 monto (integer), slot_attendant, forma_pago, created_at.
 """
+from datetime import datetime
+
 from psycopg2.extras import execute_values
 
 from core.database import get_connection
@@ -606,14 +608,18 @@ def get_transacciones_mes_anio(anio=None, mes=None, nombre=None):
 def get_total_por_anio(anio=None, mes=None, nombre=None):
     """Total acumulado de transacciones por asistente y año.
 
+    Las columnas son SIEMPRE los últimos 5 años (año actual y los 4 anteriores),
+    aunque algunos todavía no tengan datos (se muestran en 0). Así la tabla deja
+    espacio para comparar la evolución a medida que se cargan más años.
+
     Devuelve un dict:
         {
-          "anios": [2025, 2026],
-          "filas": [{"nombre": ..., "valores": [n_2025, n_2026], "total": N}, ...],
-          "totales": [n_2025, n_2026],
+          "anios": [2022, 2023, 2024, 2025, 2026],
+          "filas": [{"nombre": ..., "valores": [...], "total": N}, ...],
+          "totales": [...],
           "total": N
         }
-    o None si no hay datos. Las filas se ordenan por total desc.
+    o None si no hay datos.
     """
     where, params = _where(anio, mes, nombre)
     conn = get_connection()
@@ -637,13 +643,21 @@ def get_total_por_anio(anio=None, mes=None, nombre=None):
     if not filas:
         return None
 
-    anios = sorted({f["anio"] for f in filas})
+    # Columnas fijas: últimos 5 años (incluye años sin datos, en 0).
+    anio_actual = datetime.now().year
+    anios = list(range(anio_actual - 4, anio_actual + 1))
     idx = {a: i for i, a in enumerate(anios)}
 
     por_nombre = {}
     for f in filas:
+        # Ignora datos fuera de la ventana de 5 años (por si hubiera años viejos).
+        if f["anio"] not in idx:
+            continue
         vals = por_nombre.setdefault(f["nombre"], [0] * len(anios))
         vals[idx[f["anio"]]] = int(f["ops"])
+
+    if not por_nombre:
+        return None
 
     filas_out = [
         {"nombre": nom, "valores": vals, "total": sum(vals)}
