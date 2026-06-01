@@ -353,6 +353,12 @@ def upload_comps():
         flash(f"No se pudo leer el Excel: {exc}", "error")
         return redirect(url_for("upload.upload_comps"))
 
+    # 2b) Normalizar los nombres de columna. En el Excel los encabezados pueden
+    # traer saltos de línea o espacios dobles (ej. "Fecha\nReal"), por lo que
+    # colapsamos cualquier espacio en blanco a un solo espacio y quitamos los
+    # de los extremos. Así "Fecha Real" coincide aunque venga con salto de línea.
+    df.columns = [" ".join(str(col).split()) for col in df.columns]
+
     # 3) Validar columnas requeridas; avisar exactamente cuál falta.
     faltantes = [c for c in COLUMNAS_REQUERIDAS_COMPS if c not in df.columns]
     if faltantes:
