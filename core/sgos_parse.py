@@ -222,3 +222,103 @@ def construir_id_unico_premios(
         f"{fecha_iso}_{jornada_iso}_{maquina}_{cliente}_"
         f"{transferencia_final}_{tipo_de_pago}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Helpers específicos del Excel de COMPS
+# ---------------------------------------------------------------------------
+# El Excel de COMPS (hoja "RrtIformeGeneral") trae:
+#   - "Fecha Real" con fecha Y hora reales del consumo (se guarda TIMESTAMP).
+#   - NO trae una jornada confiable: se RECALCULA desde la hora con la misma
+#     regla que Premios (10:00 AM a 09:00 AM) -> reutilizamos
+#     calcular_jornada_premios.
+#   - El identificador único preferido es "Consumo Id".
+
+
+def limpiar_consumo_id(valor):
+    """Limpia el "Consumo Id" para usarlo como base del id_unico.
+
+    - Lo convierte a texto y quita espacios.
+    - Quita la comilla simple inicial que Excel agrega para forzar texto.
+    - Quita la parte decimal innecesaria que a veces agrega pandas
+      (229810.0 -> "229810").
+
+    Si viene vacío, devuelve "" (el llamador usará la clave alternativa).
+    """
+    if _es_vacio(valor):
+        return ""
+    # Si es un número entero "disfrazado" de float, quitamos el .0.
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    if isinstance(valor, int):
+        return str(valor)
+    texto = str(valor).strip()
+    if texto.startswith("'"):
+        texto = texto[1:]
+    texto = texto.strip()
+    # Caso "229810.0" llegado como texto: quitamos el .0 final.
+    if texto.endswith(".0") and texto[:-2].isdigit():
+        texto = texto[:-2]
+    return texto
+
+
+def limpiar_usuario_id(valor):
+    """Devuelve el "Usuario Id" como texto sin espacios.
+
+    Puede llegar como número (ej: 45.0) o texto. Lo dejamos como texto sin la
+    parte decimal (45.0 -> "45") y sin espacios internos. Una celda vacía
+    devuelve cadena vacía.
+    """
+    if _es_vacio(valor):
+        return ""
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    if isinstance(valor, int):
+        return str(valor)
+    texto = str(valor).strip()
+    if texto.startswith("'"):
+        texto = texto[1:]
+    # Sin espacios (ni internos): "12 34" -> "1234".
+    return "".join(texto.split())
+
+
+def limpiar_micros(valor):
+    """Convierte la columna "Micros" a entero.
+
+    Acepta número (45.0 -> 45) o texto con puntos de miles. Lanza ValueError
+    si está vacío o no se puede convertir, para reportarlo por fila.
+    """
+    if _es_vacio(valor):
+        raise ValueError("Micros vacío")
+    if isinstance(valor, (int, float)):
+        return int(round(float(valor)))
+    texto = str(valor).strip()
+    limpio = "".join(c for c in texto if c.isdigit() or c == "-")
+    if not limpio or limpio == "-":
+        raise ValueError(f"Micros inválido: {valor!r}")
+    return int(limpio)
+
+
+def construir_id_unico_comps(
+    consumo_id, fecha_real, cliente_id, descripcion_prod, micros, usuario_id
+):
+    """Crea un id_unico ESTABLE para evitar comps duplicados.
+
+    Preferimos "Consumo Id" (ya limpio). Si viene vacío, construimos una clave
+    combinando los datos del registro, normalizando la fecha a ISO para que el
+    id_unico no cambie por diferencias de formato visual.
+
+    Es estable: al subir el mismo Excel otra vez, la misma fila genera el mismo
+    id_unico y se detecta como duplicado.
+    """
+    base = limpiar_consumo_id(consumo_id)
+    if base:
+        return base
+
+    # Fallback: fecha_real normalizada + datos identificadores del registro.
+    fecha_iso = (
+        fecha_real.strftime("%Y-%m-%dT%H:%M:%S")
+        if isinstance(fecha_real, datetime)
+        else str(fecha_real)
+    )
+    return f"{fecha_iso}_{cliente_id}_{descripcion_prod}_{micros}_{usuario_id}"

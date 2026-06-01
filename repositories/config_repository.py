@@ -17,6 +17,7 @@ Cubre dos áreas:
 from werkzeug.security import generate_password_hash
 
 from core.database import get_connection
+from psycopg2.extras import execute_values
 
 
 def ensure_schema():
@@ -214,6 +215,50 @@ def create_jefatura(usuario_id, nombre, area=None):
             creado = cur.fetchone() is not None
         conn.commit()
         return creado
+    finally:
+        conn.close()
+
+
+def upsert_jefaturas_desde_comps(pares):
+    """Inserta jefaturas faltantes a partir de la carga de COMPS.
+
+    `pares` es una lista de tuplas (usuario_id, nombre). Insertamos solo las
+    que NO existen todavía: ON CONFLICT (usuario_id) DO NOTHING. No se tocan
+    las jefaturas ya registradas, para preservar el `area` cargada a mano.
+
+    Devuelve la cantidad de jefaturas realmente insertadas.
+    """
+    # Filtramos pares válidos (usuario_id obligatorio) y eliminamos duplicados
+    # dentro del mismo archivo conservando el primer nombre visto.
+    vistos = {}
+    for usuario_id, nombre in pares:
+        usuario_id = (usuario_id or "").strip()
+        nombre = (nombre or "").strip()
+        if usuario_id and usuario_id not in vistos:
+            vistos[usuario_id] = nombre
+
+    if not vistos:
+        return 0
+
+    valores = [(uid, nombre) for uid, nombre in vistos.items()]
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            insertadas = execute_values(
+                cur,
+                """
+                INSERT INTO jefaturas (usuario_id, nombre)
+                VALUES %s
+                ON CONFLICT (usuario_id) DO NOTHING
+                RETURNING id
+                """,
+                valores,
+                fetch=True,
+            )
+            inserted = len(insertadas)
+        conn.commit()
+        return inserted
     finally:
         conn.close()
 
