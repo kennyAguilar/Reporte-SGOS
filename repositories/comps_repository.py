@@ -170,7 +170,7 @@ def get_resumen(anio=None, mes=None, nombre=None):
                 "mes_cargado": mes_ingles(max_jornada),
                 "fecha_carga": fecha_hora(r["fecha_carga"]),
                 "hasta_jornada": fecha_larga(max_jornada),
-                "total_label_titulo": "Micros totales del mes",
+                "total_label_titulo": "Micros totales del mes" if mes else "Micros totales acumulados",
                 "total_valor": miles(r["micros_total"]),
                 "total_label": f"{miles(r['cantidad'])} comps",
                 "ultima_valor": miles(u.get("m")),

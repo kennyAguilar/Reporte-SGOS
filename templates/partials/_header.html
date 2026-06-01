@@ -18,7 +18,8 @@
        class="{{ 'active' if active == 'getnet' else '' }}">Getnet</a>
     <a href="{{ url_for('premios.dashboard') }}"
        class="{{ 'active' if active == 'premios' else '' }}">Premios</a>
-    <a href="{{ url_for('upload.upload_comps') }}" class="{{ 'active' if active == 'comps' else '' }}">Comps</a>
+    <a href="{{ url_for('comps.dashboard') }}"
+       class="{{ 'active' if active == 'comps' else '' }}">Comps</a>
     <a href="#" class="{{ 'active' if active == 'analisis' else '' }}">Análisis general</a>
     <a href="#" class="{{ 'active' if active == 'control' else '' }}">Control</a>
     <a href="#" class="{{ 'active' if active == 'coinin' else '' }}">CoinIn Cero</a>

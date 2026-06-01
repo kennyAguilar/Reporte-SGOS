@@ -3,6 +3,7 @@ from flask import Flask, render_template
 
 from config import Config
 from modules.auth import auth_bp
+from modules.comps import comps_bp
 from modules.config import config_bp
 from modules.getnet import getnet_bp
 from modules.home import home_bp
@@ -19,6 +20,7 @@ def create_app():
     app.register_blueprint(home_bp)
     app.register_blueprint(getnet_bp)
     app.register_blueprint(premios_bp)
+    app.register_blueprint(comps_bp)
     app.register_blueprint(upload_bp)
     app.register_blueprint(config_bp)
 

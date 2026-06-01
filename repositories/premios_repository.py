@@ -188,6 +188,7 @@ def get_resumen(anio=None, mes=None, nombre=None):
                 "mes_cargado": mes_ingles(max_jornada),
                 "fecha_carga": fecha_hora(r["fecha_carga"]),
                 "hasta_jornada": fecha_larga(max_jornada),
+                "total_label_titulo": "Monto total del mes" if mes else "Monto total acumulado",
                 "total_valor": pesos(r["monto_total"]),
                 "total_label": f"{miles(r['cantidad'])} premios",
                 "ultima_valor": pesos(u.get("m")),
