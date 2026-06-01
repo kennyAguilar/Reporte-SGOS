@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Comps · Histórico — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/comps.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "comps" %}
+{% set filter_action = url_for('comps.historico') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Comps #}
+    <nav class="submenu">
+      <a href="{{ url_for('comps.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('comps.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('comps.entrega') }}"
+         class="{{ 'active' if seccion == 'entrega' else '' }}">Entrega</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Comps</div>
+      <h2>Histórico</h2>
+    </div>
+
+    <section class="chart-card">
+      <h3>Por Categoría</h3>
+      {% if categorias %}
+        <div class="tabla-scroll">
+          <table class="tabla-detalle">
+            <thead>
+              <tr>
+                <th class="col-nombre">Categoría</th>
+                <th class="col-num">Cantidad</th>
+                <th class="col-num">Monto total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in categorias %}
+                {% set cat_idx = loop.index %}
+                <tr class="fila-grupo" data-grupo="cat-{{ cat_idx }}">
+                  <td class="col-nombre">
+                    <span class="caret">›</span>{{ c.categoria }}
+                  </td>
+                  <td class="col-num">{{ c.cantidad_fmt }}</td>
+                  <td class="col-num">{{ c.monto_fmt }}</td>
+                </tr>
+                {% for p in c.productos %}
+                  <tr class="fila-detalle" data-de="cat-{{ cat_idx }}" hidden>
+                    <td class="col-nombre col-hijo">{{ p.producto }}</td>
+                    <td class="col-num">{{ p.cantidad_fmt }}</td>
+                    <td class="col-num">{{ p.monto_fmt }}</td>
+                  </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">No hay datos de Comps para este filtro. Carga un archivo o ajusta los filtros.</div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/comps.js') }}"></script>
+{% endblock %}

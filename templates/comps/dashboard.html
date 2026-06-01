@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Comps · Dashboard — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "comps" %}
+{% set filter_action = url_for('comps.dashboard') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {# Sub-menú del módulo Comps #}
+    <nav class="submenu">
+      <a href="{{ url_for('comps.dashboard') }}"
+         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('comps.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('comps.entrega') }}"
+         class="{{ 'active' if seccion == 'entrega' else '' }}">Entrega</a>
+    </nav>
+
+    <div class="module-head">
+      <div class="module-eyebrow">Comps</div>
+      <h2>Dashboard</h2>
+    </div>
+
+    {# KPIs rápidos #}
+    {% if kpis %}
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Cortesías quemadas</div>
+          <div class="kpi-value">{{ kpis.total_comps }}</div>
+          <div class="kpi-extra">
+            <span><em>Días contados</em> {{ kpis.dias }}</span>
+            <span><em>Promedio x día</em> {{ kpis.promedio_comps }}</span>
+          </div>
+        </div>
+        <div class="kpi-card kpi-card--accent">
+          <div class="kpi-label">Monto total (micros)</div>
+          <div class="kpi-value financiero">{{ kpis.monto_total }}</div>
+          <div class="kpi-extra">
+            <span><em>Promedio x cortesía</em> {{ kpis.ticket }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Clientes únicos</div>
+          <div class="kpi-value">{{ kpis.clientes_unicos }}</div>
+        </div>
+      </div>
+    {% endif %}
+
+    {# Leyenda de cálculos #}
+    <section class="legend-card">
+      <h3 class="legend-title">📒 Leyenda de cálculos</h3>
+      <div class="legend-grid">
+        <div>
+          <strong>Base de datos</strong>
+          <p>Comps usa las cortesías quemadas cargadas. El filtro de año y mes limita todos los gráficos.</p>
+        </div>
+        <div>
+          <strong>Cortesías por Mes</strong>
+          <p>Cuenta las cortesías quemadas agrupadas por Mes.</p>
+        </div>
+        <div>
+          <strong>Promedios por Día</strong>
+          <p>Agrupa por día de la semana y divide cortesías o micros entre las jornadas únicas de ese día.</p>
+        </div>
+        <div>
+          <strong>Top productos / Categorías</strong>
+          <p>Productos más quemados y distribución de cortesías por categoría.</p>
+        </div>
+      </div>
+    </section>
+
+    {% if not resumen %}
+      <div class="empty-state">No hay datos de Comps para este filtro. Carga un archivo o ajusta los filtros.</div>
+    {% else %}
+      {# Fila 1: por mes #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>☑️ Cortesías por Mes</h3>
+          {% if cortesias_mes %}
+            <div class="chart-box"><canvas id="chart-comps-mes"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>📊 Micros por Mes</h3>
+          {% if montos_mes %}
+            <div class="chart-box"><canvas id="chart-comps-montos-mes"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Fila 2: por día de la semana (promedio) #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>📅 Cortesías por Día (Promedio)</h3>
+          {% if dia_semana %}
+            <div class="chart-box"><canvas id="chart-comps-dia"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>📈 Micros por Día (Promedio)</h3>
+          {% if dia_semana %}
+            <div class="chart-box"><canvas id="chart-comps-montos-dia"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Fila 3: top productos + categorías #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🏆 Top 10 Productos Quemados</h3>
+          {% if top_productos %}
+            <div class="chart-box"><canvas id="chart-comps-productos"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>🍩 Distribución por Categoría</h3>
+          {% if categorias and categorias.formas %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-comps-categorias"></canvas></div>
+              <ul class="donut-legend">
+                {% for f in categorias.formas %}
+                  <li>
+                    <span class="dot" style="background: {{ f.color }}"></span>
+                    {{ f.label }} <strong>{{ f.pct }}%</strong>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="comps-data" type="application/json">
+        {{ {
+          "cortesias_mes": cortesias_mes,
+          "montos_mes": montos_mes,
+          "dia_semana": dia_semana,
+          "top_productos": top_productos,
+          "categorias": categorias.formas if categorias else None
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  {% if resumen %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}

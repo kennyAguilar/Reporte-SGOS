@@ -58,17 +58,74 @@ def _contexto_filtros():
 @comps_bp.route("/")
 @login_required
 def dashboard():
-    """Landing de Comps. Sección en construcción; muestra el resumen disponible."""
+    """Dashboard de Comps: KPIs + gráficos por mes, por día de la semana,
+    top de productos y distribución por categoría."""
     anio, mes, nombre, filtros, anios = _contexto_filtros()
 
     resumen = _safe(comps_repository.get_resumen, anio, mes, nombre)
+    kpis = _safe(comps_repository.get_kpis_dashboard, anio, mes, nombre)
+    cortesias_mes = _safe(comps_repository.get_cortesias_por_mes, anio, mes, nombre)
+    montos_mes = _safe(comps_repository.get_montos_por_mes, anio, mes, nombre)
+    dia_semana = _safe(comps_repository.get_promedio_por_dia_semana, anio, mes, nombre)
+    top_productos = _safe(comps_repository.get_top_productos, anio, mes, nombre)
+    categorias = _safe(comps_repository.get_categorias, anio, mes, nombre)
     return render_template(
-        "comps/placeholder.html",
+        "comps/dashboard.html",
         user=current_user(),
         active="comps",
         seccion="dashboard",
         titulo="Dashboard",
         resumen=resumen,
+        kpis=kpis,
+        cortesias_mes=cortesias_mes,
+        montos_mes=montos_mes,
+        dia_semana=dia_semana,
+        top_productos=top_productos,
+        categorias=categorias,
+        filtros=filtros,
+        anios=anios,
+        meses=MESES,
+    )
+
+
+@comps_bp.route("/historico")
+@login_required
+def historico():
+    """Histórico de Comps: detalle Por Categoría (expandible a productos)."""
+    anio, mes, nombre, filtros, anios = _contexto_filtros()
+
+    resumen = _safe(comps_repository.get_resumen, anio, mes, nombre)
+    categorias = _safe(comps_repository.get_categorias_detalle, anio, mes, nombre)
+    return render_template(
+        "comps/historico.html",
+        user=current_user(),
+        active="comps",
+        seccion="historico",
+        titulo="Histórico",
+        resumen=resumen,
+        categorias=categorias,
+        filtros=filtros,
+        anios=anios,
+        meses=MESES,
+    )
+
+
+@comps_bp.route("/entrega")
+@login_required
+def entrega():
+    """Entrega de Comps: resumen por jugador (expandible a los jefes que invitaron)."""
+    anio, mes, nombre, filtros, anios = _contexto_filtros()
+
+    resumen = _safe(comps_repository.get_resumen, anio, mes, nombre)
+    jugadores = _safe(comps_repository.get_resumen_jugadores, anio, mes, nombre)
+    return render_template(
+        "comps/entrega.html",
+        user=current_user(),
+        active="comps",
+        seccion="entrega",
+        titulo="Entrega",
+        resumen=resumen,
+        jugadores=jugadores,
         filtros=filtros,
         anios=anios,
         meses=MESES,

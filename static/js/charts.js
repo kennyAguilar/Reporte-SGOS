@@ -13,15 +13,17 @@
   const TEXTO = "#8d8d8d";
 
   const dataEl = document.getElementById("getnet-data");
-  if (!dataEl || typeof Chart === "undefined") {
+  if (typeof Chart === "undefined") {
     return;
   }
 
-  let datos;
-  try {
-    datos = JSON.parse(dataEl.textContent);
-  } catch (e) {
-    return;
+  let datos = null;
+  if (dataEl) {
+    try {
+      datos = JSON.parse(dataEl.textContent);
+    } catch (e) {
+      datos = null;
+    }
   }
 
   // Opciones base compartidas por todos los gráficos.
@@ -142,7 +144,7 @@
   }
 
   // --- Operaciones por Mes (barras oro) ---
-  if (datos.ops_mes) {    crearBarras(
+  if (datos && datos.ops_mes) {    crearBarras(
       "chart-ops-mes",
       datos.ops_mes.labels,
       datos.ops_mes.valores,
@@ -152,7 +154,7 @@
   }
 
   // --- Montos por Mes (área verde) ---
-  if (datos.montos_mes) {
+  if (datos && datos.montos_mes) {
     crearArea(
       "chart-montos-mes",
       datos.montos_mes.labels,
@@ -164,7 +166,7 @@
   }
 
   // --- Operaciones por Hora promedio (barras azul) ---
-  if (datos.promedio_hora) {
+  if (datos && datos.promedio_hora) {
     crearBarras(
       "chart-ops-hora",
       datos.promedio_hora.labels,
@@ -185,12 +187,12 @@
   }
 
   // --- Donut por forma de pago (débito / crédito) ---
-  if (datos.formas) {
+  if (datos && datos.formas) {
     crearDonut("chart-formas", datos.formas);
   }
 
   // --- Distribución por tipo de pago (Premios · Record, barras oro) ---
-  if (datos.tipos) {
+  if (datos && datos.tipos) {
     crearBarras(
       "chart-tipos",
       datos.tipos.labels,
@@ -198,6 +200,149 @@
       ORO,
       "Transacciones"
     );
+  }
+
+  // ===================================================================
+  // Dashboard de Comps. Datos embebidos en <script id="comps-data">.
+  // Reutiliza las mismas funciones de gráficos; el donut usa `valor`.
+  // ===================================================================
+  function crearBarrasH(id, labels, valores, color, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const previo = Chart.getChart(el);
+    if (previo) previo.destroy();
+    new Chart(el, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: label,
+            data: valores,
+            backgroundColor: color,
+            borderRadius: 2,
+            maxBarThickness: 22,
+          },
+        ],
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: TEXTO, boxWidth: 12 } } },
+        scales: {
+          x: { ticks: { color: TEXTO }, grid: { color: GRID }, beginAtZero: true },
+          y: { ticks: { color: TEXTO }, grid: { color: GRID } },
+        },
+      },
+    });
+  }
+
+  // Donut a partir de categorías {label, valor, pct, color}.
+  function crearDonutCat(id, formas) {
+    const el = document.getElementById(id);
+    if (!el || !formas || !formas.length) return;
+    const previo = Chart.getChart(el);
+    if (previo) previo.destroy();
+    new Chart(el, {
+      type: "doughnut",
+      data: {
+        labels: formas.map((f) => f.label),
+        datasets: [
+          {
+            data: formas.map((f) => f.valor),
+            backgroundColor: formas.map((f) => f.color),
+            borderColor: "#161616",
+            borderWidth: 2,
+            hoverOffset: 6,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "62%",
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const f = formas[ctx.dataIndex];
+                return `${f.label}: ${f.valor.toLocaleString("es-CL")} (${f.pct}%)`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  const compsEl = document.getElementById("comps-data");
+  if (compsEl) {
+    let comps = null;
+    try {
+      comps = JSON.parse(compsEl.textContent);
+    } catch (e) {
+      comps = null;
+    }
+
+    if (comps) {
+      // Cortesías por mes (barras oro).
+      if (comps.cortesias_mes) {
+        crearBarras(
+          "chart-comps-mes",
+          comps.cortesias_mes.labels,
+          comps.cortesias_mes.valores,
+          ORO,
+          "Cortesías"
+        );
+      }
+
+      // Micros por mes (área verde).
+      if (comps.montos_mes) {
+        crearArea(
+          "chart-comps-montos-mes",
+          comps.montos_mes.labels,
+          comps.montos_mes.valores,
+          VERDE,
+          "Micros"
+        );
+      }
+
+      // Promedio por día de la semana (cortesías azul, micros naranja).
+      if (comps.dia_semana) {
+        crearBarras(
+          "chart-comps-dia",
+          comps.dia_semana.labels,
+          comps.dia_semana.cortesias,
+          AZUL,
+          "Promedio Cortesías"
+        );
+        crearArea(
+          "chart-comps-montos-dia",
+          comps.dia_semana.labels,
+          comps.dia_semana.montos,
+          NARANJA,
+          "Promedio Micros"
+        );
+      }
+
+      // Top productos (barras horizontales oro).
+      if (comps.top_productos) {
+        crearBarrasH(
+          "chart-comps-productos",
+          comps.top_productos.labels,
+          comps.top_productos.valores,
+          ORO,
+          "Cortesías"
+        );
+      }
+
+      // Distribución por categoría (donut).
+      if (comps.categorias) {
+        crearDonutCat("chart-comps-categorias", comps.categorias);
+      }
+    }
   }
 
   // --- Escala de color del mapa de calor ---

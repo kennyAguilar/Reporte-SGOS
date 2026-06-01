@@ -1,0 +1,85 @@
+/* SGOS — Estilos del módulo Comps: tablas detalle expandibles. */
+
+.tabla-scroll {
+  overflow-x: auto;
+}
+
+.tabla-detalle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabla-detalle thead th {
+  text-align: left;
+  padding: 12px 16px;
+  color: #8d8d8d;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #393939;
+  white-space: nowrap;
+}
+
+.tabla-detalle .col-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla-detalle tbody td {
+  padding: 11px 16px;
+  border-bottom: 1px solid #2a2a2a;
+  color: #e0e0e0;
+}
+
+/* Fila de categoría (grupo): clicable para expandir. */
+.tabla-detalle .fila-grupo {
+  cursor: pointer;
+  background: #1f1f1f;
+  transition: background 120ms ease;
+}
+
+.tabla-detalle .fila-grupo:hover {
+  background: #262626;
+}
+
+.tabla-detalle .fila-grupo .col-nombre {
+  font-weight: 600;
+  color: #f4f4f4;
+}
+
+/* Triángulo indicador. */
+.tabla-detalle .caret {
+  display: inline-block;
+  width: 14px;
+  margin-right: 8px;
+  color: #d4af37;
+  transition: transform 120ms ease;
+}
+
+.tabla-detalle .fila-grupo.abierta .caret {
+  transform: rotate(90deg);
+}
+
+/* Filas de detalle (productos). */
+.tabla-detalle .fila-detalle td {
+  background: #161616;
+  color: #c6c6c6;
+}
+
+.tabla-detalle .col-hijo {
+  padding-left: 40px;
+  color: #a8a8a8;
+}
+
+/* Etiqueta de área del jefe (Entrega). */
+.tabla-detalle .badge-area {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 1px 8px;
+  font-size: 11px;
+  border-radius: 10px;
+  background: #2a2a2a;
+  color: #8d8d8d;
+  vertical-align: middle;
+}

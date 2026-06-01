@@ -19,6 +19,10 @@
     <nav class="submenu">
       <a href="{{ url_for('comps.dashboard') }}"
          class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+      <a href="{{ url_for('comps.historico') }}"
+         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+      <a href="{{ url_for('comps.entrega') }}"
+         class="{{ 'active' if seccion == 'entrega' else '' }}">Entrega</a>
     </nav>
 
     <div class="module-head">
