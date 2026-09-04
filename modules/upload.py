@@ -191,7 +191,7 @@ def upload():
     if errores:
         mensaje += f" {len(errores)} fila(s) con error fueron omitidas."
     flash(mensaje, "success")
-    return redirect(url_for("home.index"))
+    return redirect(url_for("getnet.dashboard"))
 
 
 @upload_bp.route("/upload/premios", methods=["GET", "POST"])
@@ -475,7 +475,7 @@ def upload_comps():
     except Exception:
         pass  # el registro de log no debe romper la carga
 
-    # 8) Mostrar resumen al usuario (se queda en la página de carga).
+    # 8) Mostrar resumen al usuario.
     mensaje = (
         f"Carga completada: {leidos} leídos, {quemados} QUEMADO, "
         f"{resultado['inserted']} insertados, "
@@ -486,4 +486,4 @@ def upload_comps():
     if errores:
         mensaje += f" {len(errores)} fila(s) con error fueron omitidas."
     flash(mensaje, "success")
-    return redirect(url_for("upload.upload_comps"))
+    return redirect(url_for("comps.dashboard"))
