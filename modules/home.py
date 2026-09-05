@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request
 
 from core.auth import current_user, login_required
 from repositories import (
+    coinin_repository,
     comps_repository,
     getnet_repository,
     premios_repository,
@@ -43,6 +44,8 @@ def index():
     getnet = _safe(getnet_repository.get_resumen, anio, mes, nombre)
     premios = _safe(premios_repository.get_resumen, anio, mes, nombre)
     comps = _safe(comps_repository.get_resumen, anio, mes, nombre)
+    coinin_mda = _safe(coinin_repository.get_resumen, "MDA", anio, mes, nombre)
+    coinin_mdj = _safe(coinin_repository.get_resumen, "MDJ", anio, mes, nombre)
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
 
     anio_actual = datetime.now().year
@@ -61,6 +64,8 @@ def index():
         getnet=getnet,
         premios=premios,
         comps=comps,
+        coinin_mda=coinin_mda,
+        coinin_mdj=coinin_mdj,
         ultimo_archivo=ultimo_archivo,
         filtros=filtros,
         anios=anios,

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}Coin In {{ sistema }} · Dashboard — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "coinin" %}
+{% set filter_action = url_for('coinin.mda_dashboard' if sistema == 'MDA' else 'coinin.mdj_dashboard') %}
+{% set url_carga = url_for('upload.upload_coinin', sistema=sistema|lower) %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {% include "coinin/_submenu.html" with context %}
+
+    <div class="module-head">
+      <div class="module-eyebrow">Coin In {{ sistema }}</div>
+      <h2>Dashboard</h2>
+    </div>
+
+    {% if kpis %}
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-card--accent">
+          <div class="kpi-label">Coin In total</div>
+          <div class="kpi-value financiero">{{ kpis.coin_in }}</div>
+          <div class="kpi-extra">
+            <span><em>Promedio x jornada</em> {{ kpis.coin_in_dia }}</span>
+            <span><em>Promedio x jugador-día</em> {{ kpis.ticket }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Jugadores únicos</div>
+          <div class="kpi-value">{{ kpis.jugadores }}</div>
+          <div class="kpi-extra">
+            <span><em>Jornadas</em> {{ kpis.dias }}</span>
+            <span><em>Jugadores x jornada</em> {{ kpis.jugadores_dia }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Juegos jugados</div>
+          <div class="kpi-value">{{ kpis.juegos }}</div>
+          <div class="kpi-extra">
+            <span><em>Promedio x jugador-día</em> {{ kpis.juegos_jugador }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Prom Jugado</div>
+          <div class="kpi-value financiero">{{ kpis.prom_jugado }}</div>
+          <div class="kpi-extra">
+            <span><em>Sobre el Coin In</em> {{ kpis.pct_promo }}</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <section class="legend-card">
+      <h3 class="legend-title">📒 Leyenda de cálculos</h3>
+      <div class="legend-grid">
+        <div>
+          <strong>Base de datos</strong>
+          <p>El reporte de Coin In {{ sistema }} trae una fila por jugador y por Gaming Date
+             (jornada). Los filtros de año y mes limitan todos los indicadores.</p>
+        </div>
+        <div>
+          <strong>Coin In total</strong>
+          <p>Suma de <em>Coin In Amount</em>. El promedio por jornada divide ese total entre
+             las jornadas distintas del periodo.</p>
+        </div>
+        <div>
+          <strong>Jugadores únicos</strong>
+          <p>Cuenta <em>Player ID</em> distintos. "Jugadores x jornada" divide las filas del
+             periodo entre las jornadas, porque un jugador puede repetirse en varios días.</p>
+        </div>
+        <div>
+          <strong>Prom Jugado</strong>
+          <p>Suma del crédito promocional jugado. El porcentaje lo compara contra el Coin In
+             del mismo periodo.</p>
+        </div>
+      </div>
+    </section>
+
+    {% if not resumen %}
+      <div class="empty-state">
+        No hay datos de Coin In {{ sistema }} para este filtro. Carga un archivo o ajusta los filtros.
+      </div>
+    {% else %}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>📊 Coin In por Mes</h3>
+          {% if coin_in_mes %}
+            <div class="chart-box"><canvas id="chart-coinin-mes"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>👥 Jugadores únicos por Mes</h3>
+          {% if jugadores_mes %}
+            <div class="chart-box"><canvas id="chart-coinin-jugadores"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🍩 Coin In por Player Level</h3>
+          {% if niveles %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-coinin-niveles"></canvas></div>
+              <ul class="donut-legend">
+                {% for n in niveles %}
+                  <li>
+                    <span class="dot" style="background: {{ n.color }}"></span>
+                    {{ n.label }} <strong>{{ n.pct }}%</strong>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>🏆 Top 10 jugadores por Coin In</h3>
+          {% if top_jugadores %}
+            <div class="heatmap-scroll">
+              <table class="record-table sortable-table">
+                <thead>
+                  <tr>
+                    <th>Jugador</th>
+                    <th>Nivel</th>
+                    <th>Jornadas</th>
+                    <th>Coin In</th>
+                    <th>Juegos</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for j in top_jugadores %}
+                    <tr>
+                      <td>{{ j.full_name or j.player_id }}</td>
+                      <td>{{ j.player_level }}</td>
+                      <td>{{ j.dias }}</td>
+                      <td>{{ j.coin_in_fmt }}</td>
+                      <td>{{ j.juegos_fmt }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="coinin-data" type="application/json">
+        {{ {
+          "coin_in_mes": coin_in_mes,
+          "jugadores_mes": jugadores_mes,
+          "niveles": niveles
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
+  {% if resumen %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}

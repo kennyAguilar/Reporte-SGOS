@@ -62,7 +62,7 @@
           </div>
 
           {% if record_resto %}
-            <table class="record-table">
+            <table class="record-table sortable-table">
               <thead>
                 <tr><th class="rank">#</th><th>Asistente</th><th class="num">Transacciones</th><th>Mejor jornada</th></tr>
               </thead>
@@ -96,7 +96,7 @@
 
         {% if resumen_asist %}
           <div class="heatmap-scroll">
-            <table class="record-table">
+            <table class="record-table sortable-table" data-buscador>
               <thead>
                 <tr>
                   <th class="rank">#</th>
@@ -188,7 +188,7 @@
 
         {% if total_anio %}
           <div class="heatmap-scroll">
-            <table class="record-table">
+            <table class="record-table sortable-table">
               <thead>
                 <tr>
                   <th class="rank">#</th>
@@ -229,4 +229,5 @@
 
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
 {% endblock %}

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Coin In {{ sistema }} · Histórico — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "coinin" %}
+{% set filter_action = url_for('coinin.mda_historico' if sistema == 'MDA' else 'coinin.mdj_historico') %}
+{% set url_carga = url_for('upload.upload_coinin', sistema=sistema|lower) %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {% include "coinin/_submenu.html" with context %}
+
+    <div class="module-head">
+      <div class="module-eyebrow">Coin In {{ sistema }}</div>
+      <h2>Histórico</h2>
+    </div>
+
+    <section class="chart-card">
+      <h3>Resumen mensual</h3>
+      <p class="info-note">ℹ️ Cada fila agrupa las jornadas del mes. "Coin In x jugador"
+        divide el Coin In del mes entre los jugadores únicos de ese mes.</p>
+      {% if mensual %}
+        <div class="heatmap-scroll">
+          <table class="record-table sortable-table">
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th>Jornadas</th>
+                <th>Jugadores</th>
+                <th>Coin In</th>
+                <th>Prom Jugado</th>
+                <th>Juegos</th>
+                <th class="total-col">Coin In x jugador</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in mensual %}
+                <tr>
+                  <td>{{ m.mes }}</td>
+                  <td>{{ m.dias }}</td>
+                  <td>{{ m.jugadores }}</td>
+                  <td>{{ m.coin_in }}</td>
+                  <td>{{ m.prom_jugado }}</td>
+                  <td>{{ m.juegos }}</td>
+                  <td class="total-col">{{ m.coin_in_jugador }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">No hay datos de Coin In {{ sistema }} para este filtro.</div>
+      {% endif %}
+    </section>
+
+    <section class="chart-card">
+      <h3>Por Player Level</h3>
+      <p class="info-note">ℹ️ Totales acumulados del periodo filtrado, agrupados por nivel
+        del jugador.</p>
+      {% if niveles %}
+        <div class="heatmap-scroll">
+          <table class="record-table sortable-table">
+            <thead>
+              <tr>
+                <th>Nivel</th>
+                <th>Jugadores</th>
+                <th>Coin In</th>
+                <th>Prom Jugado</th>
+                <th>Juegos</th>
+                <th class="total-col">Coin In x jugador</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for n in niveles %}
+                <tr>
+                  <td>{{ n.nivel }}</td>
+                  <td>{{ n.jugadores }}</td>
+                  <td>{{ n.coin_in }}</td>
+                  <td>{{ n.prom_jugado }}</td>
+                  <td>{{ n.juegos }}</td>
+                  <td class="total-col">{{ n.coin_in_jugador }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">Sin datos.</div>
+      {% endif %}
+    </section>
+
+    <section class="chart-card">
+      <h3>Top 50 jugadores</h3>
+      <p class="info-note">ℹ️ Ordenados por Coin In acumulado en el periodo filtrado.
+        Usa el filtro de nombre para buscar un jugador puntual.</p>
+      {% if top_jugadores %}
+        <div class="heatmap-scroll">
+          <table class="record-table sortable-table" data-buscador>
+            <thead>
+              <tr>
+                <th>Player ID</th>
+                <th>Jugador</th>
+                <th>Nivel</th>
+                <th>Jornadas</th>
+                <th>Coin In</th>
+                <th>Juegos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for j in top_jugadores %}
+                <tr>
+                  <td>{{ j.player_id }}</td>
+                  <td>{{ j.full_name }}</td>
+                  <td>{{ j.player_level }}</td>
+                  <td>{{ j.dias }}</td>
+                  <td>{{ j.coin_in_fmt }}</td>
+                  <td>{{ j.juegos_fmt }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">Sin datos.</div>
+      {% endif %}
+    </section>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
+{% endblock %}

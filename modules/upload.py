@@ -13,12 +13,15 @@ from core.auth import current_user, login_required
 from core.sgos_parse import (
     calcular_jornada_premios,
     construir_id_unico,
+    construir_id_unico_coinin,
     construir_id_unico_comps,
     construir_id_unico_premios,
     limpiar_consumo_id,
+    limpiar_entero_opcional,
     limpiar_id_cliente,
     limpiar_micros,
     limpiar_monto,
+    limpiar_player_id,
     limpiar_texto,
     limpiar_usuario_id,
     normalizar_jornada,
@@ -27,6 +30,7 @@ from core.sgos_parse import (
     parsear_fecha,
 )
 from repositories import (
+    coinin_repository,
     comps_repository,
     config_repository,
     getnet_repository,
@@ -82,6 +86,19 @@ COLUMNAS_REQUERIDAS_COMPS = [
     "Nombre",
 ]
 
+# Columnas del Excel de Coin In (MDA y MDJ comparten estructura).
+# El reporte trae muchas más columnas; solo se guardan estas.
+COLUMNAS_REQUERIDAS_COININ = [
+    "Gaming Date",
+    "Player ID",
+    "Full Name",
+    "Player Level",
+    "Coin In Amount",
+    "Prom Jugado",
+    "Total Games played",
+]
+SISTEMAS_COININ = {"mda": "MDA", "mdj": "MDJ"}
+
 
 def _fila_vacia(fila):
     """True si toda la fila viene vacía (se ignora)."""
@@ -89,6 +106,30 @@ def _fila_vacia(fila):
         (valor is None) or (isinstance(valor, float) and pd.isna(valor))
         for valor in fila.values()
     )
+
+
+def _normalizar_columnas(df):
+    """Colapsa espacios y saltos de línea de los encabezados del Excel."""
+    df.columns = [" ".join(str(col).split()) for col in df.columns]
+    return df
+
+
+def _resolver_columnas(df, requeridas):
+    """Empareja las columnas requeridas sin distinguir mayúsculas.
+
+    Devuelve (mapa, faltantes), donde mapa[requerida] es el nombre real de la
+    columna en el DataFrame. Los reportes de Coin In cambian la capitalización
+    entre exportaciones ("Total Games played" / "Total Games Played").
+    """
+    disponibles = {col.lower(): col for col in df.columns}
+    mapa, faltantes = {}, []
+    for requerida in requeridas:
+        real = disponibles.get(requerida.lower())
+        if real is None:
+            faltantes.append(requerida)
+        else:
+            mapa[requerida] = real
+    return mapa, faltantes
 
 
 @upload_bp.route("/upload", methods=["GET", "POST"])
@@ -487,3 +528,152 @@ def upload_comps():
         mensaje += f" {len(errores)} fila(s) con error fueron omitidas."
     flash(mensaje, "success")
     return redirect(url_for("comps.dashboard"))
+
+
+@upload_bp.route("/upload/coinin/<sistema>", methods=["GET", "POST"])
+@login_required
+def upload_coinin(sistema):
+    """Carga del Excel de Coin In (MDA o MDJ).
+
+    Ambos reportes comparten estructura y se guardan en la misma tabla,
+    distinguidos por la columna `sistema`.
+
+    El archivo trae filas de título antes del encabezado real, así que la fila
+    de encabezado se detecta buscando "Gaming Date" en vez de fijarla.
+
+    Reglas:
+      - "Gaming Date" es directamente la jornada (el reporte ya viene agregado
+        por jugador y día, no hay que recalcularla).
+      - Los montos pueden venir con formato "$1.652.845"; una celda vacía se
+        interpreta como 0 (sin actividad).
+      - id_unico = sistema + jornada + Player ID.
+    """
+    clave = (sistema or "").lower()
+    if clave not in SISTEMAS_COININ:
+        flash("Sistema de Coin In desconocido.", "error")
+        return redirect(url_for("coinin.index"))
+    nombre_sistema = SISTEMAS_COININ[clave]
+
+    if request.method == "GET":
+        return render_template(
+            "upload_coinin.html", user=current_user(), sistema=nombre_sistema
+        )
+
+    # 1) Validar que llegó un archivo.
+    archivo = request.files.get("archivo")
+    if not archivo or not archivo.filename:
+        flash("Debe seleccionar un archivo Excel.", "error")
+        return redirect(url_for("upload.upload_coinin", sistema=clave))
+
+    # 2) Localizar la fila de encabezado y leer el Excel desde ahí.
+    try:
+        previo = pd.read_excel(archivo, sheet_name=0, header=None, nrows=30)
+        fila_encabezado = None
+        for indice, valores in previo.iterrows():
+            textos = [" ".join(str(v).split()).lower() for v in valores.tolist()]
+            if "gaming date" in textos:
+                fila_encabezado = indice
+                break
+        if fila_encabezado is None:
+            flash(
+                "No se encontró la fila de encabezado ('Gaming Date') en el Excel.",
+                "error",
+            )
+            return redirect(url_for("upload.upload_coinin", sistema=clave))
+
+        archivo.seek(0)
+        df = _normalizar_columnas(
+            pd.read_excel(archivo, sheet_name=0, header=fila_encabezado)
+        )
+    except Exception as exc:
+        flash(f"No se pudo leer el Excel: {exc}", "error")
+        return redirect(url_for("upload.upload_coinin", sistema=clave))
+
+    # 3) Validar columnas requeridas; avisar exactamente cuál falta.
+    cols, faltantes = _resolver_columnas(df, COLUMNAS_REQUERIDAS_COININ)
+    if faltantes:
+        flash(
+            "Faltan columnas requeridas en el Excel: " + ", ".join(faltantes),
+            "error",
+        )
+        return redirect(url_for("upload.upload_coinin", sistema=clave))
+
+    # 4) Recorrer filas, limpiar y transformar.
+    filas = []
+    procesados = 0
+    errores = []
+    for indice, registro in df.iterrows():
+        fila = registro.to_dict()
+        if _fila_vacia(fila):
+            continue
+
+        fila_excel = indice + fila_encabezado + 2
+        try:
+            player_id = limpiar_player_id(fila[cols["Player ID"]])
+            if not player_id:
+                continue  # filas de subtotal del reporte no traen jugador
+
+            jornada = parsear_fecha(fila[cols["Gaming Date"]]).date()
+            full_name = limpiar_texto(fila[cols["Full Name"]])
+            player_level = limpiar_texto(fila[cols["Player Level"]])
+            coin_in = limpiar_entero_opcional(fila[cols["Coin In Amount"]])
+            prom_jugado = limpiar_entero_opcional(fila[cols["Prom Jugado"]])
+            total_games = limpiar_entero_opcional(fila[cols["Total Games played"]])
+
+            filas.append(
+                {
+                    "id_unico": construir_id_unico_coinin(
+                        nombre_sistema, jornada, player_id
+                    ),
+                    "sistema": nombre_sistema,
+                    "jornada": jornada,
+                    "player_id": player_id,
+                    "full_name": full_name,
+                    "player_level": player_level,
+                    "coin_in": coin_in,
+                    "prom_jugado": prom_jugado,
+                    "total_games": total_games,
+                }
+            )
+            procesados += 1
+        except Exception as exc:
+            errores.append(f"Fila {fila_excel}: {exc}")
+
+    if not filas:
+        detalle = " ".join(errores[:5]) if errores else ""
+        flash(f"No se encontraron filas válidas para cargar. {detalle}", "error")
+        return redirect(url_for("upload.upload_coinin", sistema=clave))
+
+    # 5) Insertar evitando duplicados (crea la tabla si aún no existe).
+    try:
+        coinin_repository.ensure_coinin_schema()
+        resultado = coinin_repository.insertar_filas(filas)
+    except Exception as exc:
+        flash(f"Error al guardar en la base de datos: {exc}", "error")
+        return redirect(url_for("upload.upload_coinin", sistema=clave))
+
+    # 6) Registrar la carga en upload_log.
+    usuario = (current_user() or {}).get("username") or "desconocido"
+    try:
+        upload_repository.registrar_carga(
+            tipo=f"coinin_{clave}",
+            archivo=archivo.filename,
+            usuario=usuario,
+            rows_total=procesados,
+            rows_inserted=resultado["inserted"],
+            rows_skipped=resultado["skipped"],
+        )
+    except Exception:
+        pass  # el registro de log no debe romper la carga
+
+    # 7) Mostrar resumen al usuario.
+    mensaje = (
+        f"Carga completada: {procesados} procesados, "
+        f"{resultado['inserted']} insertados, "
+        f"{resultado['skipped']} duplicados."
+    )
+    if errores:
+        mensaje += f" {len(errores)} fila(s) con error fueron omitidas."
+    flash(mensaje, "success")
+    endpoint = "coinin.mda_dashboard" if clave == "mda" else "coinin.mdj_dashboard"
+    return redirect(url_for(endpoint))

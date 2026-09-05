@@ -118,6 +118,74 @@
         <div class="empty-state">No hay carga registrada para este módulo.</div>
       {% endif %}
     </section>
+
+    <!-- Coin In MDA -->
+    <section class="module-block">
+      <div class="module-head">
+        <div class="module-eyebrow">Coin In MDA</div>
+        <h2>Estado de carga</h2>
+      </div>
+      {% if coinin_mda %}
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Mes cargado</div>
+            <div class="kpi-value">{{ coinin_mda.mes_cargado }}</div>
+            <div class="kpi-sub">{{ coinin_mda.fecha_carga }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Hasta jornada</div>
+            <div class="kpi-value">{{ coinin_mda.hasta_jornada }}</div>
+            <div class="kpi-sub">Última jornada registrada</div>
+          </div>
+          <div class="kpi-card kpi-card--accent">
+            <div class="kpi-label">{{ coinin_mda.total_label_titulo }}</div>
+            <div class="kpi-value financiero">{{ coinin_mda.total_valor }}</div>
+            <div class="kpi-sub">{{ coinin_mda.total_label }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Última jornada</div>
+            <div class="kpi-value financiero">{{ coinin_mda.ultima_valor }}</div>
+            <div class="kpi-sub">{{ coinin_mda.ultima_label }}</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">No hay carga registrada para este módulo.</div>
+      {% endif %}
+    </section>
+
+    <!-- Coin In MDJ -->
+    <section class="module-block">
+      <div class="module-head">
+        <div class="module-eyebrow">Coin In MDJ</div>
+        <h2>Estado de carga</h2>
+      </div>
+      {% if coinin_mdj %}
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Mes cargado</div>
+            <div class="kpi-value">{{ coinin_mdj.mes_cargado }}</div>
+            <div class="kpi-sub">{{ coinin_mdj.fecha_carga }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Hasta jornada</div>
+            <div class="kpi-value">{{ coinin_mdj.hasta_jornada }}</div>
+            <div class="kpi-sub">Última jornada registrada</div>
+          </div>
+          <div class="kpi-card kpi-card--accent">
+            <div class="kpi-label">{{ coinin_mdj.total_label_titulo }}</div>
+            <div class="kpi-value financiero">{{ coinin_mdj.total_valor }}</div>
+            <div class="kpi-sub">{{ coinin_mdj.total_label }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Última jornada</div>
+            <div class="kpi-value financiero">{{ coinin_mdj.ultima_valor }}</div>
+            <div class="kpi-sub">{{ coinin_mdj.ultima_label }}</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">No hay carga registrada para este módulo.</div>
+      {% endif %}
+    </section>
   </main>
 </div>
 {% endblock %}

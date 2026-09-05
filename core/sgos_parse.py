@@ -299,6 +299,67 @@ def limpiar_micros(valor):
     return int(limpio)
 
 
+# ---------------------------------------------------------------------------
+# Helpers específicos del Excel de Coin In (MDA y MDJ)
+# ---------------------------------------------------------------------------
+# El reporte de Coin In ya viene AGREGADO: una fila por jugador y por
+# "Gaming Date". Por eso:
+#   - "Gaming Date" es directamente la jornada (no hay que recalcularla).
+#   - Los montos pueden venir con formato "$1.652.845".
+#   - No hay un identificador de fila; el id_unico se arma con la clave
+#     natural del reporte: sistema + jornada + Player ID.
+
+
+def limpiar_entero_opcional(valor):
+    """Convierte a entero un valor que puede venir vacío o con formato de moneda.
+
+    Acepta números (1652845.0 -> 1652845) y textos tipo "$1.652.845" o
+    "-142.500". Una celda vacía devuelve 0, porque en este reporte un valor
+    ausente significa "sin actividad" y no un error de la fila.
+    """
+    if _es_vacio(valor):
+        return 0
+    if isinstance(valor, (int, float)):
+        return int(round(float(valor)))
+    texto = str(valor).strip()
+    negativo = texto.startswith("-") or (texto.startswith("(") and texto.endswith(")"))
+    limpio = "".join(c for c in texto if c.isdigit())
+    if not limpio:
+        return 0
+    numero = int(limpio)
+    return -numero if negativo else numero
+
+
+def limpiar_player_id(valor):
+    """Devuelve el "Player ID" como texto estable.
+
+    Puede llegar como número (12345.0), con comilla inicial de Excel o con
+    espacios. Lo normalizamos para que el id_unico no cambie entre cargas.
+    """
+    if _es_vacio(valor):
+        return ""
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    if isinstance(valor, int):
+        return str(valor)
+    texto = str(valor).strip()
+    if texto.startswith("'"):
+        texto = texto[1:]
+    return texto.strip()
+
+
+def construir_id_unico_coinin(sistema, jornada, player_id):
+    """Crea el id_unico de Coin In con la clave natural del reporte.
+
+    El Excel trae una sola fila por jugador y Gaming Date, así que
+    sistema + jornada + Player ID identifica el registro sin ambigüedad y es
+    estable: volver a subir el mismo archivo genera el mismo id_unico y las
+    filas se detectan como duplicadas.
+    """
+    return f"{sistema}_{jornada.isoformat()}_{player_id}"
+
+
+
 def construir_id_unico_comps(
     consumo_id, fecha_real, cliente_id, descripcion_prod, micros, usuario_id
 ):

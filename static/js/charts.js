@@ -345,6 +345,56 @@
     }
   }
 
+  // ===================================================================
+  // Dashboard de Coin In (MDA / MDJ). Datos en <script id="coinin-data">.
+  // Los niveles traen {label, coin_in, jugadores, pct, color}.
+  // ===================================================================
+  const coininEl = document.getElementById("coinin-data");
+  if (coininEl) {
+    let coinin = null;
+    try {
+      coinin = JSON.parse(coininEl.textContent);
+    } catch (e) {
+      coinin = null;
+    }
+
+    if (coinin) {
+      // Coin In por mes (área verde).
+      if (coinin.coin_in_mes) {
+        crearArea(
+          "chart-coinin-mes",
+          coinin.coin_in_mes.labels,
+          coinin.coin_in_mes.valores,
+          VERDE,
+          "Coin In",
+          pesos
+        );
+      }
+
+      // Jugadores únicos por mes (barras oro).
+      if (coinin.jugadores_mes) {
+        crearBarras(
+          "chart-coinin-jugadores",
+          coinin.jugadores_mes.labels,
+          coinin.jugadores_mes.valores,
+          ORO,
+          "Jugadores"
+        );
+      }
+
+      // Coin In por Player Level (donut).
+      if (coinin.niveles && coinin.niveles.length) {
+        const niveles = coinin.niveles.map((n) => ({
+          label: n.label,
+          valor: n.coin_in,
+          pct: n.pct,
+          color: n.color,
+        }));
+        crearDonutCat("chart-coinin-niveles", niveles);
+      }
+    }
+  }
+
   // --- Escala de color del mapa de calor ---
   // Cada celda recibe un fondo oro con opacidad proporcional a su valor
   // respecto al máximo de la tabla. Así las franjas activas resaltan.

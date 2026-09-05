@@ -3,13 +3,14 @@ from flask import Flask, render_template
 
 from config import Config
 from modules.auth import auth_bp
+from modules.coinin import coinin_bp
 from modules.comps import comps_bp
 from modules.config import config_bp
 from modules.getnet import getnet_bp
 from modules.home import home_bp
 from modules.premios import premios_bp
 from modules.upload import upload_bp
-from repositories import config_repository, premios_repository
+from repositories import coinin_repository, config_repository, premios_repository
 
 
 def create_app():
@@ -21,6 +22,7 @@ def create_app():
     app.register_blueprint(getnet_bp)
     app.register_blueprint(premios_bp)
     app.register_blueprint(comps_bp)
+    app.register_blueprint(coinin_bp)
     app.register_blueprint(upload_bp)
     app.register_blueprint(config_bp)
 
@@ -32,6 +34,10 @@ def create_app():
         pass
     try:
         premios_repository.ensure_premios_schema()
+    except Exception:
+        pass
+    try:
+        coinin_repository.ensure_coinin_schema()
     except Exception:
         pass
 

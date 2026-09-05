@@ -51,7 +51,7 @@
 
         {% if resumen_mensual %}
           <div class="heatmap-scroll">
-            <table class="record-table">
+            <table class="record-table sortable-table">
               <thead>
                 <tr>
                   <th>Mes</th>
@@ -99,7 +99,7 @@
 
         {% if ops_hora %}
           <div class="heatmap-scroll">
-            <table class="record-table">
+            <table class="record-table sortable-table">
               <thead>
                 <tr>
                   <th>Hora</th>
@@ -196,4 +196,5 @@
 
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
 {% endblock %}

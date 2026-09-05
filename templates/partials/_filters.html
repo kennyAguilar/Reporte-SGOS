@@ -36,6 +36,18 @@
              value="{{ filtros.nombre }}" placeholder="Slot attendant / cliente">
     </div>
 
+    {% if niveles_disponibles %}
+      <div class="field">
+        <label for="f-nivel">Nivel</label>
+        <select name="nivel" id="f-nivel">
+          <option value="">Todos</option>
+          {% for n in niveles_disponibles %}
+            <option value="{{ n }}" {{ 'selected' if filtros.nivel == n else '' }}>{{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
     <div class="filters-actions">
       <button type="submit" class="btn-primary">Aplicar</button>
       <button type="button" class="btn-outline" id="btn-todos">Todos</button>

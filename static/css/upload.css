@@ -1,0 +1,163 @@
+/* SGOS — Pantallas de carga de Excel.
+   Tema Carbon v11 Gray 100 con acento oro, según DESIGN.md (secciones 2, 3, 4 y 11).
+   Reemplaza los estilos claros que tenía cada template de carga. */
+
+.upload-wrap {
+  max-width: 720px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+/* Card principal: $layer-01 sobre $background, borde $layer-02. */
+.upload-card {
+  background: #262626;
+  border: 1px solid #393939;
+  border-left: 3px solid #d4af37; /* acento oro de card principal */
+  padding: 24px;
+}
+
+.upload-eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8d8d8d;
+  margin-bottom: 4px;
+}
+
+.upload-card h1 {
+  font-size: 20px;
+  font-weight: 400;
+  margin: 0 0 8px;
+  color: #f4f4f4;
+}
+
+.upload-card p.sub {
+  color: #c6c6c6;
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.upload-card p.sub strong {
+  color: #f4f4f4;
+  font-weight: 600;
+}
+
+.upload-field {
+  margin-bottom: 24px;
+}
+
+.upload-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #c6c6c6;
+  margin-bottom: 8px;
+}
+
+/* Input de archivo: $layer-02 con borde punteado para señalar zona de carga. */
+.upload-field input[type="file"] {
+  width: 100%;
+  padding: 16px;
+  background: #393939;
+  border: 1px dashed #6f6f6f;
+  color: #f4f4f4;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.upload-field input[type="file"]:hover {
+  background: #525252;
+  border-color: #d4af37;
+}
+
+.upload-field input[type="file"]::file-selector-button {
+  background: #525252;
+  color: #f4f4f4;
+  border: 1px solid #6f6f6f;
+  padding: 6px 12px;
+  margin-right: 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.upload-field input[type="file"]::file-selector-button:hover {
+  background: #6f6f6f;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #8d8d8d;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* Botón primario oro y secundario oscuro (DESIGN.md 11). */
+.upload-actions .btn-primary {
+  height: 40px;
+  padding: 0 24px;
+  background: #d4af37;
+  color: #161616;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.upload-actions .btn-primary:hover {
+  background: #e0bd48;
+}
+
+.upload-actions .btn-primary:active {
+  background: #b8922d;
+}
+
+.upload-actions .btn-secondary {
+  height: 40px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  background: #393939;
+  color: #f4f4f4;
+  border: 1px solid #525252;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.upload-actions .btn-secondary:hover {
+  background: #525252;
+}
+
+/* Mensajes flash en tema oscuro, con los colores de soporte de Carbon. */
+.flash-container {
+  max-width: 720px;
+  margin: 24px auto 0;
+  padding: 0 16px;
+}
+
+.flash {
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #262626;
+  color: #f4f4f4;
+  border: 1px solid #393939;
+  border-left: 3px solid #8d8d8d;
+}
+
+.flash--success {
+  border-left-color: #24a148;
+}
+
+.flash--error {
+  border-left-color: #da1e28;
+  color: #ffb3b8;
+}
