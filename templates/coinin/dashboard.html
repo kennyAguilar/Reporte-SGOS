@@ -179,7 +179,7 @@
   <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
   <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
   {% if resumen %}
-    <script src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/charts.js') }}"></script>
   {% endif %}
 {% endblock %}
