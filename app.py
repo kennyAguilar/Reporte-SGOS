@@ -1,4 +1,6 @@
 """Punto de entrada de SGOS."""
+import os
+
 from flask import Flask, render_template
 
 from config import Config
@@ -16,6 +18,23 @@ from repositories import coinin_repository, config_repository, premios_repositor
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    @app.url_defaults
+    def _versionar_estaticos(endpoint, values):
+        """Agrega ?v=<fecha de modificación> a los archivos estáticos.
+
+        Sin esto, Cloudflare (o el navegador) puede seguir sirviendo una copia
+        cacheada de un .js/.css viejo tras un deploy, porque la URL no cambia
+        aunque el contenido sí. Al variar la URL en cada cambio real de
+        archivo, se fuerza a pedir la versión nueva.
+        """
+        if endpoint != "static" or "filename" not in values:
+            return
+        ruta = os.path.join(app.static_folder, values["filename"])
+        try:
+            values["v"] = int(os.path.getmtime(ruta))
+        except OSError:
+            pass
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(home_bp)
