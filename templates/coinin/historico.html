@@ -108,6 +108,7 @@
           <table class="record-table sortable-table" data-buscador>
             <thead>
               <tr>
+                <th class="rank">#</th>
                 <th>Player ID</th>
                 <th>Jugador</th>
                 <th>Nivel</th>
@@ -119,6 +120,7 @@
             <tbody>
               {% for j in top_jugadores %}
                 <tr>
+                  <td class="rank">{{ loop.index }}</td>
                   <td>{{ j.player_id }}</td>
                   <td>{{ j.full_name }}</td>
                   <td>{{ j.player_level }}</td>
