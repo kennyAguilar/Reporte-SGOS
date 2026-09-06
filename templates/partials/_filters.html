@@ -48,6 +48,18 @@
       </div>
     {% endif %}
 
+    {% if areas_disponibles %}
+      <div class="field">
+        <label for="f-area">Área</label>
+        <select name="area" id="f-area">
+          <option value="">Todas</option>
+          {% for a in areas_disponibles %}
+            <option value="{{ a }}" {{ 'selected' if filtros.area == a else '' }}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
     <div class="filters-actions">
       <button type="submit" class="btn-primary">Aplicar</button>
       <button type="button" class="btn-outline" id="btn-todos">Todos</button>

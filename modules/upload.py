@@ -114,6 +114,37 @@ def _normalizar_columnas(df):
     return df
 
 
+def _valor_a_texto(valor):
+    """Convierte una celda a texto sin pasar por float."""
+    if valor is None:
+        return ""
+    if isinstance(valor, float):
+        return str(int(valor)) if valor.is_integer() else str(valor)
+    return str(valor).strip()
+
+
+def _converters_texto(archivo, columnas, **opciones_lectura):
+    """Arma el `converters` que obliga a leer ciertas columnas como texto.
+
+    Los ID de tarjeta tienen 21 dígitos y NO caben en int64, así que pandas los
+    infiere como float y terminan guardados en notación científica
+    ('3.0172e+20'), perdiendo dígitos de forma irreversible. Con un converter,
+    pandas entrega el valor tal cual lo lee openpyxl (int exacto) y solo lo
+    pasamos a texto.
+
+    Lee primero solo los encabezados para resolver el nombre real de cada
+    columna (pueden traer saltos de línea) y deja el archivo rebobinado.
+    """
+    encabezados = pd.read_excel(archivo, nrows=0, **opciones_lectura).columns
+    archivo.seek(0)
+    buscadas = {c.lower() for c in columnas}
+    return {
+        col: _valor_a_texto
+        for col in encabezados
+        if " ".join(str(col).split()).lower() in buscadas
+    }
+
+
 def _resolver_columnas(df, requeridas):
     """Empareja las columnas requeridas sin distinguir mayúsculas.
 
@@ -145,8 +176,13 @@ def upload():
         return redirect(url_for("upload.upload"))
 
     # 2) Leer el Excel. El encabezado real está en la fila 2 -> header=1.
+    #    "Id Cliente" se fuerza a texto: aunque hoy llega con comilla inicial,
+    #    si el Excel alguna vez lo exporta como número se perderían dígitos
+    #    (ver _converters_texto).
     try:
-        df = pd.read_excel(archivo, sheet_name=SHEET, header=1)
+        opciones = {"sheet_name": SHEET, "header": 1}
+        convert = _converters_texto(archivo, ["Id Cliente"], **opciones)
+        df = pd.read_excel(archivo, converters=convert, **opciones)
     except Exception as exc:
         flash(f"No se pudo leer el Excel: {exc}", "error")
         return redirect(url_for("upload.upload"))
@@ -388,8 +424,12 @@ def upload_comps():
         return redirect(url_for("upload.upload_comps"))
 
     # 2) Leer el Excel. El encabezado real está en la fila 8 -> header=7.
+    #    "Cliente Id" se fuerza a texto: es un número de 21 dígitos que pandas
+    #    convertiría a float y guardaría como '3.0172e+20' (ver _converters_texto).
     try:
-        df = pd.read_excel(archivo, sheet_name=SHEET_COMPS, header=HEADER_COMPS)
+        opciones = {"sheet_name": SHEET_COMPS, "header": HEADER_COMPS}
+        convert = _converters_texto(archivo, ["Cliente Id"], **opciones)
+        df = pd.read_excel(archivo, converters=convert, **opciones)
     except Exception as exc:
         flash(f"No se pudo leer el Excel: {exc}", "error")
         return redirect(url_for("upload.upload_comps"))
@@ -582,8 +622,10 @@ def upload_coinin(sistema):
             return redirect(url_for("upload.upload_coinin", sistema=clave))
 
         archivo.seek(0)
+        opciones = {"sheet_name": 0, "header": fila_encabezado}
+        convert = _converters_texto(archivo, ["Player ID"], **opciones)
         df = _normalizar_columnas(
-            pd.read_excel(archivo, sheet_name=0, header=fila_encabezado)
+            pd.read_excel(archivo, converters=convert, **opciones)
         )
     except Exception as exc:
         flash(f"No se pudo leer el Excel: {exc}", "error")

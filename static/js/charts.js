@@ -395,6 +395,50 @@
     }
   }
 
+  // ===================================================================
+  // Dashboard de Coin In Cero. Datos en <script id="coinin-cero-data">.
+  // casos_mes trae {labels, casos, montos}; areas trae {label, monto, pct, color}.
+  // ===================================================================
+  const ceroEl = document.getElementById("coinin-cero-data");
+  if (ceroEl) {
+    let cero = null;
+    try {
+      cero = JSON.parse(ceroEl.textContent);
+    } catch (e) {
+      cero = null;
+    }
+
+    if (cero) {
+      if (cero.casos_mes) {
+        crearBarras(
+          "chart-cero-casos",
+          cero.casos_mes.labels,
+          cero.casos_mes.casos,
+          NARANJA,
+          "Casos sin juego"
+        );
+        crearArea(
+          "chart-cero-montos",
+          cero.casos_mes.labels,
+          cero.casos_mes.montos,
+          ORO,
+          "Cortesías",
+          pesos
+        );
+      }
+
+      if (cero.areas && cero.areas.length) {
+        const areas = cero.areas.map((a) => ({
+          label: a.label,
+          valor: a.monto,
+          pct: a.pct,
+          color: a.color,
+        }));
+        crearDonutCat("chart-cero-areas", areas);
+      }
+    }
+  }
+
   // --- Escala de color del mapa de calor ---
   // Cada celda recibe un fondo oro con opacidad proporcional a su valor
   // respecto al máximo de la tabla. Así las franjas activas resaltan.

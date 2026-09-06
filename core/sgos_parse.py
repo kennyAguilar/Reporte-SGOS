@@ -36,11 +36,41 @@ def limpiar_id_cliente(valor):
     En el Excel viene con una comilla simple inicial (ej: '301720020100077042767)
     porque Excel la usa para forzar que el número se trate como texto.
     Quitamos esa comilla inicial y los espacios.
+
+    Ver `_texto_id_grande`: si el valor llegó como float significa que el
+    Excel lo entregó como número (no como texto) y pandas ya le truncó los
+    dígitos (un float64 solo guarda ~15-17 dígitos exactos; el Id Cliente
+    tiene 21). Se prefiere fallar la fila antes que guardar un ID corrupto.
     """
-    texto = limpiar_texto(valor)
+    return _texto_id_grande(valor, "Id Cliente")
+
+
+def _texto_id_grande(valor, campo):
+    """Convierte un ID de tarjeta/jugador a texto sin arriesgar pérdida de dígitos.
+
+    Estos ID tienen ~21 dígitos y NO caben en un float64 (que solo preserva
+    15-17 dígitos exactos). Si en algún punto el Excel se leyó sin forzar la
+    columna a texto, pandas entrega un float ya truncado (ej: 3.0172e+20) y
+    seguir adelante guardaría ese ID corrupto en la base para siempre. Por eso
+    esta función RECHAZA el valor (ValueError) en vez de "limpiarlo": la fila se
+    reporta como error en la carga en lugar de corromper el dato en silencio.
+    """
+    if _es_vacio(valor):
+        return ""
+    if isinstance(valor, float):
+        raise ValueError(
+            f"{campo} llegó como número decimal ({valor!r}); el Excel debe "
+            "traer esta columna como texto o se pierden dígitos."
+        )
+    if isinstance(valor, int):
+        return str(valor)
+    texto = str(valor).strip()
     if texto.startswith("'"):
         texto = texto[1:]
-    return texto.strip()
+    texto = texto.strip()
+    if "e+" in texto.lower() or "e-" in texto.lower():
+        raise ValueError(f"{campo} vino en notación científica: {texto!r}")
+    return texto
 
 
 def limpiar_monto(valor):
@@ -331,21 +361,12 @@ def limpiar_entero_opcional(valor):
 
 
 def limpiar_player_id(valor):
-    """Devuelve el "Player ID" como texto estable.
+    """Devuelve el "Player ID" como texto sin arriesgar pérdida de dígitos.
 
-    Puede llegar como número (12345.0), con comilla inicial de Excel o con
-    espacios. Lo normalizamos para que el id_unico no cambie entre cargas.
+    Ver `_texto_id_grande`: si llega como float (Excel lo entregó como
+    número) se rechaza en vez de guardarlo truncado.
     """
-    if _es_vacio(valor):
-        return ""
-    if isinstance(valor, float) and valor.is_integer():
-        return str(int(valor))
-    if isinstance(valor, int):
-        return str(valor)
-    texto = str(valor).strip()
-    if texto.startswith("'"):
-        texto = texto[1:]
-    return texto.strip()
+    return _texto_id_grande(valor, "Player ID")
 
 
 def construir_id_unico_coinin(sistema, jornada, player_id):

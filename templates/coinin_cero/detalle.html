@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Coin In Cero · Detalle — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/comps.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "coinin_cero" %}
+{% set filter_action = url_for('coinin_cero.detalle') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {% include "coinin_cero/_submenu.html" with context %}
+
+    <div class="module-head">
+      <div class="module-eyebrow">Coin In Cero</div>
+      <h2>Detalle</h2>
+    </div>
+
+    {% include "coinin_cero/_aviso.html" with context %}
+
+    <section class="info-note">
+      ℹ️ Cada fila es un jugador que recibió cortesías sin registrar juego en
+      la pestaña de área seleccionada. Púlsala para ver las jornadas, quién
+      se las entregó y el premio que cobró ese mismo día. Un “—” en Premio
+      significa que no hubo pago esa jornada.
+    </section>
+
+    {% if tabs %}
+      <nav class="submenu">
+        {% for t in tabs %}
+          <a href="{{ t.url }}" class="{{ 'active' if t.activo else '' }}">{{ t.label }}</a>
+        {% endfor %}
+      </nav>
+    {% endif %}
+
+    {% if not grupo %}
+      <div class="empty-state">
+        No hay casos de Coin In Cero para este filtro. Ajusta los filtros o carga
+        los Excel de Comps, Coin In y Premios.
+      </div>
+    {% else %}
+      <section class="chart-card">
+        <h3>👔 {{ grupo.label }}</h3>
+        {% if grupo.resumen %}
+          <p class="info-note info-note--inline">
+            {{ grupo.resumen.jugadores }} jugadores · {{ grupo.resumen.casos }} casos ·
+            {{ grupo.resumen.monto }} en cortesías
+          </p>
+        {% endif %}
+        {% if grupo.jugadores %}
+          <div class="tabla-scroll">
+            <table class="tabla-detalle">
+              <thead>
+                <tr>
+                  <th class="col-nombre">Jugador / Jornada</th>
+                  <th class="col-num">Cortesías</th>
+                  <th class="col-num">Monto cortesías</th>
+                  <th>Jefe que entregó</th>
+                  <th class="col-num">Premio ese día</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for j in grupo.jugadores %}
+                  {% set jug_idx = loop.index %}
+                  <tr class="fila-grupo" data-grupo="cero-{{ jug_idx }}">
+                    <td class="col-nombre">
+                      <span class="caret">›</span>{{ j.jugador }}
+                      <span class="badge-area">{{ j.jornadas_n }} jornadas</span>
+                    </td>
+                    <td class="col-num">{{ j.cortesias_fmt }}</td>
+                    <td class="col-num">{{ j.monto_fmt }}</td>
+                    <td></td>
+                    <td class="col-num">{{ j.premio_fmt }}</td>
+                  </tr>
+                  {% for jor in j.jornadas %}
+                    <tr class="fila-detalle" data-de="cero-{{ jug_idx }}" hidden>
+                      <td class="col-nombre col-hijo">{{ jor.fecha }}</td>
+                      <td class="col-num">{{ jor.cortesias_fmt }}</td>
+                      <td class="col-num">{{ jor.monto_fmt }}</td>
+                      <td>
+                        {% for jefe in jor.jefes %}
+                          {{ jefe.jefe }}<span class="badge-area">{{ jefe.area }}</span>
+                        {% endfor %}
+                      </td>
+                      <td class="col-num">{{ jor.premio_fmt }}</td>
+                    </tr>
+                  {% endfor %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin casos de Coin In Cero en esta área para el filtro.</div>
+        {% endif %}
+      </section>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/comps.js') }}"></script>
+{% endblock %}

@@ -137,6 +137,24 @@
   margin-bottom: 16px;
 }
 
+/* Variante de advertencia: datos incompletos o que requieren una acción. */
+.info-note--warn {
+  background: #33291c;
+  border-color: #6b4d1f;
+  color: #e8d3a6;
+}
+
+.info-note--warn code {
+  background: #241c11;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* Resumen corto dentro de una tarjeta (ej. grupo por área en Coin In Cero). */
+.info-note--inline {
+  margin-bottom: 0;
+}
+
 .heatmap-chips {
   display: flex;
   flex-wrap: wrap;

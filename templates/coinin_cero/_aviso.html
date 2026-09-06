@@ -1,0 +1,13 @@
+{# Aviso que se muestra cuando hay cortesías imposibles de cruzar por tener el
+   "Cliente Id" guardado en notación científica (carga antigua de COMPS).
+   Variable esperada: sin_cruce (dict del repositorio) o None. #}
+{% if sin_cruce %}
+  <section class="info-note info-note--warn">
+    ⚠️ <strong>{{ sin_cruce.cortesias }} cortesías</strong> ({{ sin_cruce.monto }})
+    entre el {{ sin_cruce.desde }} y el {{ sin_cruce.hasta }} quedaron
+    <strong>fuera de este análisis</strong>: su “Cliente Id” se cargó en notación
+    científica (ej. <code>3.0172e+20</code>) y sin el número de tarjeta completo
+    no se puede saber si el jugador jugó. Vuelve a cargar el Excel de COMPS de
+    esas fechas para incorporarlas.
+  </section>
+{% endif %}

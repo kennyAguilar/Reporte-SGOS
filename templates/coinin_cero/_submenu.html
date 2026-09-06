@@ -1,0 +1,8 @@
+{# Sub-menú del módulo Coin In Cero.
+   Variable esperada: seccion ("dashboard" / "detalle"). #}
+<nav class="submenu">
+  <a href="{{ url_for('coinin_cero.dashboard') }}"
+     class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+  <a href="{{ url_for('coinin_cero.detalle') }}"
+     class="{{ 'active' if seccion == 'detalle' else '' }}">Detalle</a>
+</nav>

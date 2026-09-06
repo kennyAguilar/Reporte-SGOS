@@ -77,17 +77,22 @@ def insertar_filas(filas):
     estado, usuario_id, nombre.
 
     Igual que en Premios, insertamos TODO en un solo viaje con execute_values.
-    Usamos ON CONFLICT (id_unico) DO NOTHING: si el id_unico ya existe
-    (registro ya cargado o duplicado dentro del mismo archivo) se ignora.
+    Usamos ON CONFLICT (id_unico) DO UPDATE: si el id_unico ya existe se
+    refrescan sus valores en vez de ignorarlo. Así, volver a cargar un mes ya
+    cargado corrige registros mal parseados (por ejemplo, los `cliente_id` que
+    quedaron en notación científica) sin tener que borrar la tabla.
 
-    Con RETURNING id_unico la base devuelve solo las filas realmente
-    insertadas, así contamos cuántas entraron y cuántas se omitieron.
+    `RETURNING (xmax = 0)` distingue las filas nuevas de las actualizadas:
+    en una inserción real xmax vale 0.
 
-    Devuelve un dict con: inserted (insertadas) y skipped (duplicadas).
+    Devuelve un dict con: inserted (nuevas) y skipped (ya existían y se
+    actualizaron).
     """
     if not filas:
         return {"inserted": 0, "skipped": 0}
-
+    # ON CONFLICT DO UPDATE no admite tocar la misma fila dos veces en un
+    # mismo INSERT, así que dejamos una sola aparición por id_unico (la última).
+    unicas = {f["id_unico"]: f for f in filas}
     # Convertimos cada dict a una tupla en el ORDEN de las columnas del INSERT.
     valores = [
         (
@@ -109,7 +114,7 @@ def insertar_filas(filas):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            insertadas = execute_values(
+            resultado = execute_values(
                 cur,
                 f"""
                 INSERT INTO {TABLE}
@@ -117,13 +122,23 @@ def insertar_filas(filas):
                      nombre_cliente, descripcion_cat, descripcion_prod,
                      micros, estado, usuario_id, nombre)
                 VALUES %s
-                ON CONFLICT (id_unico) DO NOTHING
-                RETURNING id_unico
+                ON CONFLICT (id_unico) DO UPDATE SET
+                    fecha_real       = EXCLUDED.fecha_real,
+                    fecha_jornada    = EXCLUDED.fecha_jornada,
+                    cliente_id       = EXCLUDED.cliente_id,
+                    nombre_cliente   = EXCLUDED.nombre_cliente,
+                    descripcion_cat  = EXCLUDED.descripcion_cat,
+                    descripcion_prod = EXCLUDED.descripcion_prod,
+                    micros           = EXCLUDED.micros,
+                    estado           = EXCLUDED.estado,
+                    usuario_id       = EXCLUDED.usuario_id,
+                    nombre           = EXCLUDED.nombre
+                RETURNING (xmax = 0) AS nueva
                 """,
                 valores,
                 fetch=True,
             )
-            inserted = len(insertadas)
+            inserted = sum(1 for r in resultado if r["nueva"])
         conn.commit()
     finally:
         conn.close()

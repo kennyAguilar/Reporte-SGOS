@@ -23,7 +23,8 @@
     <a href="#" class="{{ 'active' if active == 'analisis' else '' }}">Análisis general</a>
     <a href="{{ url_for('coinin.index') }}"
        class="{{ 'active' if active == 'coinin' else '' }}">Coin In</a>
-    <a href="#" class="{{ 'active' if active == 'coinin_cero' else '' }}">Coin In Cero</a>
+    <a href="{{ url_for('coinin_cero.dashboard') }}"
+       class="{{ 'active' if active == 'coinin_cero' else '' }}">Coin In Cero</a>
   </nav>
 
   <div class="spacer"></div>

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Coin In Cero · Dashboard — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/comps.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "coinin_cero" %}
+{% set filter_action = url_for('coinin_cero.dashboard') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {% include "coinin_cero/_submenu.html" with context %}
+
+    <div class="module-head">
+      <div class="module-eyebrow">Coin In Cero</div>
+      <h2>Dashboard</h2>
+    </div>
+
+    {% include "coinin_cero/_aviso.html" with context %}
+
+    {% if kpis %}
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-card--accent">
+          <div class="kpi-label">Casos sin juego</div>
+          <div class="kpi-value">{{ kpis.casos }}</div>
+          <div class="kpi-extra">
+            <span><em>De {{ kpis.casos_total }} entregas</em> {{ kpis.pct_casos }}</span>
+            <span><em>Promedio x jornada</em> {{ kpis.casos_jornada }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Cortesías sin retorno</div>
+          <div class="kpi-value financiero">{{ kpis.monto }}</div>
+          <div class="kpi-extra">
+            <span><em>Del total entregado</em> {{ kpis.pct_monto }}</span>
+            <span><em>Promedio x caso</em> {{ kpis.monto_caso }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Jugadores involucrados</div>
+          <div class="kpi-value">{{ kpis.jugadores }}</div>
+          <div class="kpi-extra">
+            <span><em>Cortesías</em> {{ kpis.cortesias }}</span>
+            <span><em>Jornadas</em> {{ kpis.jornadas }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Con premio ese día</div>
+          <div class="kpi-value">{{ kpis.casos_premio }}</div>
+          <div class="kpi-extra">
+            <span><em>De los casos</em> {{ kpis.pct_premio }}</span>
+            <span><em>Monto pagado</em> {{ kpis.monto_premio }}</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <section class="legend-card">
+      <h3 class="legend-title">📒 Leyenda de cálculos</h3>
+      <div class="legend-grid">
+        <div>
+          <strong>Qué es un “caso”</strong>
+          <p>Un jugador en una jornada. Si Juan recibió 4 cortesías el 12 de marzo
+             y no jugó, eso es <em>un</em> caso con 4 cortesías.</p>
+        </div>
+        <div>
+          <strong>Coin In cero</strong>
+          <p>El Coin In de esa jornada es 0 <em>o</em> el jugador no aparece en el
+             reporte diario de Coin In (el reporte solo trae a quien jugó, así que
+             no estar también significa no haber jugado).</p>
+        </div>
+        <div>
+          <strong>El jefe</strong>
+          <p>Es quien entregó la cortesía en COMPS. Su área sale de la tabla de
+             jefaturas de Configuración. Si la cortesía no tiene jefe, se atribuye
+             a la máquina de <em>auto atención</em>.</p>
+        </div>
+        <div>
+          <strong>Premio ese día</strong>
+          <p>Suma de los premios que el mismo jugador cobró en esa jornada. Es la
+             señal a revisar: recibió cortesías, no registró juego y aun así hubo
+             pago de premio.</p>
+        </div>
+      </div>
+    </section>
+
+    {% if not resumen %}
+      <div class="empty-state">
+        No hay casos de Coin In Cero para este filtro. Ajusta los filtros o carga
+        los Excel de Comps, Coin In y Premios.
+      </div>
+    {% else %}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>📊 Casos por Mes</h3>
+          {% if casos_mes %}
+            <div class="chart-box"><canvas id="chart-cero-casos"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>💸 Cortesías sin retorno por Mes</h3>
+          {% if casos_mes %}
+            <div class="chart-box"><canvas id="chart-cero-montos"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🍩 Reparto por área</h3>
+          {% if areas %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-cero-areas"></canvas></div>
+              <ul class="donut-legend">
+                {% for a in areas %}
+                  <li>
+                    <span class="dot" style="background: {{ a.color }}"></span>
+                    {{ a.label }} <strong>{{ a.pct }}%</strong>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>👔 Jefes con más cortesías sin juego</h3>
+          {% if jefes %}
+            <div class="heatmap-scroll">
+              <table class="record-table sortable-table">
+                <thead>
+                  <tr>
+                    <th class="rank">#</th>
+                    <th>Jefe</th>
+                    <th>Área</th>
+                    <th>Casos</th>
+                    <th>Jugadores</th>
+                    <th>Cortesías</th>
+                    <th>Monto</th>
+                    <th>Con premio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for j in jefes %}
+                    <tr>
+                      <td class="rank">{{ loop.index }}</td>
+                      <td>{{ j.jefe }}</td>
+                      <td>{{ j.area }}</td>
+                      <td>{{ j.casos_fmt }}</td>
+                      <td>{{ j.jugadores_fmt }}</td>
+                      <td>{{ j.cortesias_fmt }}</td>
+                      <td>{{ j.monto_fmt }}</td>
+                      <td>{{ j.con_premio_fmt }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="coinin-cero-data" type="application/json">
+        {{ {
+          "casos_mes": casos_mes,
+          "areas": areas
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
+  {% if resumen %}
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}
