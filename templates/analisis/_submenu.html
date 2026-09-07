@@ -1,0 +1,16 @@
+{# Submenú de dos niveles del módulo Análisis general.
+   Nivel 1: área (MDA / MDJ), en `tabs` (label/url/activo).
+   Nivel 2: vista (Comps vs Coin In / Preferencias de productos).
+   Variables esperadas: tabs, area ("MDA"/"MDJ"), seccion. #}
+<nav class="submenu">
+  {% for t in tabs %}
+    <a href="{{ t.url }}" class="{{ 'active' if t.activo else '' }}">{{ t.label }}</a>
+  {% endfor %}
+</nav>
+
+<nav class="submenu">
+  <a href="{{ url_for('analisis.comparativa', area=area|lower) }}"
+     class="{{ 'active' if seccion == 'comparativa' else '' }}">Comps vs Coin In</a>
+  <a href="{{ url_for('analisis.productos', area=area|lower) }}"
+     class="{{ 'active' if seccion == 'productos' else '' }}">Preferencias de productos</a>
+</nav>

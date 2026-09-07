@@ -439,6 +439,111 @@
     }
   }
 
+  // ===================================================================
+  // Análisis general (Comps vs Coin In por área). Datos en
+  // <script id="analisis-data">. comparativa trae {labels, coin_in, comps,
+  // ratio}; categorias y top_productos usan el formato ya conocido.
+  // ===================================================================
+  const analisisEl = document.getElementById("analisis-data");
+  if (analisisEl) {
+    let analisis = null;
+    try {
+      analisis = JSON.parse(analisisEl.textContent);
+    } catch (e) {
+      analisis = null;
+    }
+
+    if (analisis) {
+      // Coin In (barras) vs Cortesías (línea) con dos ejes: los montos son de
+      // órdenes de magnitud muy distintos y con un solo eje la línea quedaría
+      // pegada al piso.
+      if (analisis.comparativa) {
+        const el = document.getElementById("chart-analisis-comparativa");
+        if (el) {
+          const previo = Chart.getChart(el);
+          if (previo) previo.destroy();
+          new Chart(el, {
+            data: {
+              labels: analisis.comparativa.labels,
+              datasets: [
+                {
+                  type: "bar",
+                  label: "Coin In",
+                  data: analisis.comparativa.coin_in,
+                  backgroundColor: VERDE,
+                  borderRadius: 2,
+                  maxBarThickness: 28,
+                  yAxisID: "y",
+                },
+                {
+                  type: "line",
+                  label: "Cortesías",
+                  data: analisis.comparativa.comps,
+                  borderColor: ORO,
+                  backgroundColor: ORO + "33",
+                  tension: 0.3,
+                  pointRadius: 2,
+                  pointBackgroundColor: ORO,
+                  yAxisID: "y1",
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { labels: { color: TEXTO, boxWidth: 12 } },
+                tooltip: {
+                  callbacks: { label: (ctx) => ctx.dataset.label + ": " + pesos(ctx.parsed.y) },
+                },
+              },
+              scales: {
+                x: { ticks: { color: TEXTO }, grid: { color: GRID } },
+                y: {
+                  position: "left",
+                  ticks: { color: TEXTO, callback: (v) => pesos(v) },
+                  grid: { color: GRID },
+                  beginAtZero: true,
+                },
+                y1: {
+                  position: "right",
+                  ticks: { color: TEXTO, callback: (v) => pesos(v) },
+                  grid: { display: false },
+                  beginAtZero: true,
+                },
+              },
+            },
+          });
+        }
+
+        crearArea(
+          "chart-analisis-ratio",
+          analisis.comparativa.labels,
+          analisis.comparativa.ratio,
+          NARANJA,
+          "Cortesías sobre Coin In",
+          (v) => v + "%"
+        );
+      }
+
+      // Productos más entregados (barras horizontales oro).
+      if (analisis.top_productos) {
+        crearBarrasH(
+          "chart-analisis-productos",
+          analisis.top_productos.labels,
+          analisis.top_productos.valores,
+          ORO,
+          "Entregas"
+        );
+      }
+
+      // Gasto por categoría (donut).
+      if (analisis.categorias && analisis.categorias.length) {
+        crearDonutCat("chart-analisis-categorias", analisis.categorias);
+      }
+    }
+  }
+
   // --- Escala de color del mapa de calor ---
   // Cada celda recibe un fondo oro con opacidad proporcional a su valor
   // respecto al máximo de la tabla. Así las franjas activas resaltan.

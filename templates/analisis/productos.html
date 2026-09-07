@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Análisis {{ area }} · Preferencias de productos — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/comps.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "analisis" %}
+{% set filter_action = url_for('analisis.productos', area=area|lower) %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {% include "analisis/_submenu.html" with context %}
+
+    <div class="module-head">
+      <div class="module-eyebrow">Análisis {{ area }}</div>
+      <h2>Preferencias de productos</h2>
+    </div>
+
+    <section class="info-note">
+      ℹ️ Qué consume cada cliente con las cortesías que le entregan las jefaturas de
+      {{ area }}. Pulsa una fila para ver el detalle de sus productos. El
+      <strong>favorito</strong> es el producto en el que concentra más gasto.
+    </section>
+
+    {% if not preferencias %}
+      <div class="empty-state">
+        No hay cortesías de {{ area }} para este filtro. Revisa que las jefaturas del
+        área estén configuradas y que el Excel de Comps esté cargado.
+      </div>
+    {% else %}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🥇 Productos más entregados</h3>
+          <p class="info-note">ℹ️ Cantidad de entregas por producto en el área,
+            no monto.</p>
+          {% if top_productos %}
+            <div class="chart-box"><canvas id="chart-analisis-productos"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>🍩 Gasto por categoría</h3>
+          {% if categorias %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-analisis-categorias"></canvas></div>
+              <ul class="donut-legend">
+                {% for c in categorias %}
+                  <li><span class="dot dot--cat{{ loop.index0 % 8 }}"></span>{{ c.label }} <strong>{{ c.pct }}%</strong></li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      <section class="chart-card">
+        <h3>👤 Preferencias por cliente</h3>
+        <p class="info-note">ℹ️ Top clientes por gasto en cortesías. El "%" de cada
+          producto es sobre el gasto total de ese cliente, no del área.</p>
+        <div class="tabla-scroll">
+          <table class="tabla-detalle">
+            <thead>
+              <tr>
+                <th class="col-nombre">Cliente / Producto</th>
+                <th>Categoría</th>
+                <th class="col-num">Entregas</th>
+                <th class="col-num">Monto</th>
+                <th class="col-num">% del cliente</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in preferencias %}
+                {% set cli_idx = loop.index %}
+                <tr class="fila-grupo" data-grupo="pref-{{ cli_idx }}">
+                  <td class="col-nombre">
+                    <span class="caret">›</span>{{ c.jugador }}
+                    <span class="badge-area">{{ c.productos_n }} productos</span>
+                  </td>
+                  <td>Favorito: {{ c.favorito }} ({{ c.favorito_pct }})</td>
+                  <td class="col-num">{{ c.cortesias_fmt }}</td>
+                  <td class="col-num">{{ c.monto_fmt }}</td>
+                  <td class="col-num">100%</td>
+                </tr>
+                {% for p in c.productos %}
+                  <tr class="fila-detalle" data-de="pref-{{ cli_idx }}" hidden>
+                    <td class="col-nombre col-hijo">{{ p.producto }}</td>
+                    <td>{{ p.categoria }}</td>
+                    <td class="col-num">{{ p.cantidad_fmt }}</td>
+                    <td class="col-num">{{ p.monto_fmt }}</td>
+                    <td class="col-num">{{ p.pct }}%</td>
+                  </tr>
+                {% endfor %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="chart-card">
+        <h3>📦 Resumen por producto</h3>
+        <p class="info-note">ℹ️ Todos los productos entregados en el área.
+          "Clientes" son clientes distintos que lo recibieron.</p>
+        {% if productos_resumen %}
+          <div class="heatmap-scroll">
+            <table class="record-table sortable-table" data-buscador>
+              <thead>
+                <tr>
+                  <th class="rank">#</th>
+                  <th>Producto</th>
+                  <th>Categoría</th>
+                  <th>Entregas</th>
+                  <th>Clientes</th>
+                  <th>Monto</th>
+                  <th class="total-col">% del gasto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in productos_resumen %}
+                  <tr>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ p.producto }}</td>
+                    <td>{{ p.categoria }}</td>
+                    <td>{{ p.cantidad }}</td>
+                    <td>{{ p.clientes }}</td>
+                    <td>{{ p.monto }}</td>
+                    <td class="total-col">{{ p.pct }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="analisis-data" type="application/json">
+        {{ {
+          "top_productos": top_productos,
+          "categorias": categorias
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/comps.js') }}"></script>
+  {% if preferencias %}
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}

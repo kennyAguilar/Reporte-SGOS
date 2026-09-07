@@ -316,6 +316,17 @@
   flex: 0 0 10px;
 }
 
+/* Paleta del donut por posición (misma secuencia que _COLORES en los
+   repositorios), para no escribir estilos en línea en las plantillas. */
+.donut-legend .dot--cat0 { background: #d4af37; }
+.donut-legend .dot--cat1 { background: #24a148; }
+.donut-legend .dot--cat2 { background: #78a9ff; }
+.donut-legend .dot--cat3 { background: #ff832b; }
+.donut-legend .dot--cat4 { background: #be95ff; }
+.donut-legend .dot--cat5 { background: #08bdba; }
+.donut-legend .dot--cat6 { background: #fa4d56; }
+.donut-legend .dot--cat7 { background: #a56eff; }
+
 .donut-legend strong {
   color: var(--text-primary);
   font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Análisis {{ area }} · Comps vs Coin In — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "analisis" %}
+{% set filter_action = url_for('analisis.comparativa', area=area|lower) %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    {% include "analisis/_submenu.html" with context %}
+
+    <div class="module-head">
+      <div class="module-eyebrow">Análisis {{ area }}</div>
+      <h2>Comps vs Coin In</h2>
+    </div>
+
+    {% if kpis %}
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-card--accent">
+          <div class="kpi-label">Ratio cortesías / Coin In</div>
+          <div class="kpi-value financiero">{{ kpis.ratio }}</div>
+          <div class="kpi-extra">
+            <span><em>Coin In por cada $1 de cortesía</em> {{ kpis.retorno }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Coin In del área</div>
+          <div class="kpi-value financiero">{{ kpis.coin_in }}</div>
+          <div class="kpi-extra">
+            <span><em>Promedio x jornada</em> {{ kpis.coin_in_dia }}</span>
+            <span><em>Promedio x jugador</em> {{ kpis.coin_in_jugador }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Cortesías entregadas</div>
+          <div class="kpi-value financiero">{{ kpis.comps }}</div>
+          <div class="kpi-extra">
+            <span><em>Entregas</em> {{ kpis.cortesias }}</span>
+            <span><em>Promedio x cliente</em> {{ kpis.comps_cliente }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Cobertura de juego</div>
+          <div class="kpi-value">{{ kpis.cobertura }}</div>
+          <div class="kpi-extra">
+            <span><em>Con cortesía y juego</em> {{ kpis.clientes_ambos }}</span>
+            <span><em>Con cortesía sin juego</em> {{ kpis.clientes_sin_juego }}</span>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <section class="legend-card">
+      <h3 class="legend-title">📒 Leyenda de cálculos</h3>
+      <div class="legend-grid">
+        <div>
+          <strong>Cómo se separa el área</strong>
+          <p>La cortesía pertenece al área de la <em>jefatura que la entregó</em>
+             (Configuración → Jefaturas). El Coin In sale de la fuente propia del área:
+             {% if area == 'MDJ' %}
+               mesas de juego (PUNTOS_OBTENIDOS × 1000).
+             {% else %}
+               máquinas, columna Coin In Amount.
+             {% endif %}
+             MDA y MDJ nunca se suman entre sí.</p>
+        </div>
+        <div>
+          <strong>Ratio cortesías / Coin In</strong>
+          <p>Cortesías entregadas ÷ Coin In del periodo, en porcentaje. Es cuánto se
+             devuelve por cada peso jugado. "Coin In por cada $1 de cortesía" es la
+             lectura inversa: mientras más alto, mejor retorno.</p>
+        </div>
+        <div>
+          <strong>Cobertura de juego</strong>
+          <p>De los clientes que recibieron cortesías en el área, qué porcentaje además
+             registró juego. Los que no jugaron se detallan en el módulo Coin In Cero.</p>
+        </div>
+        <div>
+          <strong>Clientes con ID inválido</strong>
+          <p>Las cortesías cuyo número de tarjeta se guardó en notación científica no se
+             pueden cruzar y quedan fuera de este análisis.</p>
+        </div>
+      </div>
+    </section>
+
+    {% if comparativa and comparativa.meses_sin_juego %}
+      <section class="info-note info-note--warn">
+        ⚠️ Hay cortesías sin Coin In cargado en: <strong>{{ comparativa.meses_sin_juego|join(', ') }}</strong>.
+        El ratio de esos meses aparece en 0% porque falta el archivo de juego, no porque
+        no hubiera costo. Mientras falte, el ratio acumulado de {{ area }} queda
+        sobreestimado.
+      </section>
+    {% endif %}
+
+    {% if not resumen %}
+      <div class="empty-state">
+        No hay datos de {{ area }} para este filtro. Revisa que las jefaturas del área
+        estén configuradas y que estén cargados los Excel de Comps y Coin In.
+      </div>
+    {% else %}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>📊 Coin In vs Cortesías por mes</h3>
+          <p class="info-note">ℹ️ Barras = Coin In del área (eje izquierdo).
+            Línea = cortesías entregadas (eje derecho). Escalas distintas para que ambas
+            series se puedan leer.</p>
+          {% if comparativa %}
+            <div class="chart-box"><canvas id="chart-analisis-comparativa"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>📈 Ratio cortesías / Coin In por mes</h3>
+          <p class="info-note">ℹ️ Porcentaje del Coin In del mes que se devolvió en
+            cortesías. Sirve para ver si el costo se está descontrolando.</p>
+          {% if comparativa %}
+            <div class="chart-box"><canvas id="chart-analisis-ratio"></canvas></div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🍩 Gasto en cortesías por categoría</h3>
+          {% if categorias %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-analisis-categorias"></canvas></div>
+              <ul class="donut-legend">
+                {% for c in categorias %}
+                  <li><span class="dot dot--cat{{ loop.index0 % 8 }}"></span>{{ c.label }} <strong>{{ c.pct }}%</strong></li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+        <section class="chart-card">
+          <h3>👤 Clientes con más cortesías</h3>
+          <p class="info-note">ℹ️ Ordenados por monto recibido. "Sin juego" marca a quien
+            recibió cortesías y no registró Coin In en el área.</p>
+          {% if top_clientes %}
+            <div class="heatmap-scroll">
+              <table class="record-table sortable-table" data-buscador>
+                <thead>
+                  <tr>
+                    <th class="rank">#</th>
+                    <th>Cliente</th>
+                    <th>Jornadas</th>
+                    <th>Coin In</th>
+                    <th>Cortesías</th>
+                    <th>Monto cortesías</th>
+                    <th class="total-col">Ratio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for c in top_clientes %}
+                    <tr class="{{ 'pico-row' if c.sin_juego else '' }}">
+                      <td class="rank">{{ loop.index }}</td>
+                      <td>{{ c.jugador }}</td>
+                      <td>{{ c.jornadas }}</td>
+                      <td>{{ c.coin_in }}</td>
+                      <td>{{ c.cortesias }}</td>
+                      <td>{{ c.comps }}</td>
+                      <td class="total-col">{{ c.ratio }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="analisis-data" type="application/json">
+        {{ {
+          "comparativa": comparativa,
+          "categorias": categorias
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
+  {% if resumen %}
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}
