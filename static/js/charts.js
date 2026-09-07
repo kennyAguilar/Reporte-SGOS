@@ -442,7 +442,8 @@
   // ===================================================================
   // Análisis general (Comps vs Coin In por área). Datos en
   // <script id="analisis-data">. comparativa trae {labels, coin_in, comps,
-  // ratio}; categorias y top_productos usan el formato ya conocido.
+  // teorico, ratio, ratio_teorico}; categorias y top_productos usan el formato
+  // ya conocido.
   // ===================================================================
   const analisisEl = document.getElementById("analisis-data");
   if (analisisEl) {
@@ -516,12 +517,14 @@
           });
         }
 
+        // Ratio contra la ganancia teórica (Coin In x 0,065). Si el JSON viene
+        // de una versión anterior sin ratio_teorico, se cae al ratio bruto.
         crearArea(
           "chart-analisis-ratio",
           analisis.comparativa.labels,
-          analisis.comparativa.ratio,
+          analisis.comparativa.ratio_teorico || analisis.comparativa.ratio,
           NARANJA,
-          "Cortesías sobre Coin In",
+          "Cortesías sobre ganancia teórica",
           (v) => v + "%"
         );
       }

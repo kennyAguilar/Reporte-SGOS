@@ -27,10 +27,19 @@
     {% if kpis %}
       <div class="kpi-grid">
         <div class="kpi-card kpi-card--accent">
-          <div class="kpi-label">Ratio cortesías / Coin In</div>
-          <div class="kpi-value financiero">{{ kpis.ratio }}</div>
+          <div class="kpi-label">Cortesías / Ganancia teórica</div>
+          <div class="kpi-value financiero">{{ kpis.ratio_teorico }}</div>
           <div class="kpi-extra">
-            <span><em>Coin In por cada $1 de cortesía</em> {{ kpis.retorno }}</span>
+            <span><em>Cortesías ÷ teórico × 100</em></span>
+            <span><em>Teórico por cada $1 de cortesía</em> {{ kpis.retorno_teorico }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Ganancia teórica ({{ kpis.margen_pct }})</div>
+          <div class="kpi-value financiero">{{ kpis.teorico }}</div>
+          <div class="kpi-extra">
+            <span><em>Coin In × 0,065</em></span>
+            <span><em>Promedio x jornada</em> {{ kpis.teorico_dia }}</span>
           </div>
         </div>
         <div class="kpi-card">
@@ -38,7 +47,7 @@
           <div class="kpi-value financiero">{{ kpis.coin_in }}</div>
           <div class="kpi-extra">
             <span><em>Promedio x jornada</em> {{ kpis.coin_in_dia }}</span>
-            <span><em>Promedio x jugador</em> {{ kpis.coin_in_jugador }}</span>
+            <span><em>Cortesías sobre Coin In bruto</em> {{ kpis.ratio }}</span>
           </div>
         </div>
         <div class="kpi-card">
@@ -75,10 +84,31 @@
              MDA y MDJ nunca se suman entre sí.</p>
         </div>
         <div>
-          <strong>Ratio cortesías / Coin In</strong>
-          <p>Cortesías entregadas ÷ Coin In del periodo, en porcentaje. Es cuánto se
-             devuelve por cada peso jugado. "Coin In por cada $1 de cortesía" es la
-             lectura inversa: mientras más alto, mejor retorno.</p>
+          <strong>Ganancia teórica (6,5%)</strong>
+          <p>De todo lo jugado se asume que la casa retiene un 6,5%. Esa es la ganancia
+             esperada del periodo, no lo apostado.</p>
+          <p><code>Ganancia teórica = Coin In × 0,065</code><br>
+             Ejemplo: 27.603.452.676 × 0,065 = 1.794.224.423,94</p>
+        </div>
+        <div>
+          <strong>Cortesías / Ganancia teórica</strong>
+          <p>Qué porcentaje de esa ganancia esperada se devolvió en cortesías. Es el
+             costo real del beneficio: mientras más alto, más se está entregando de lo
+             que el área gana.</p>
+          <p><code>Ratio % = Cortesías ÷ Ganancia teórica × 100</code><br>
+             Ejemplo: 20.458.700 ÷ 1.794.224.423,94 = 0,0114025312 → 1,14%</p>
+        </div>
+        <div>
+          <strong>Teórico por cada $1 de cortesía</strong>
+          <p>Lectura inversa del ratio: cuántos pesos de ganancia teórica genera el área
+             por cada peso entregado en cortesías. Mientras más alto, mejor retorno.</p>
+          <p><code>Ganancia teórica ÷ Cortesías</code></p>
+        </div>
+        <div>
+          <strong>Cortesías sobre Coin In bruto</strong>
+          <p>El mismo cociente pero contra todo lo jugado (<code>Cortesías ÷ Coin In × 100</code>).
+             Queda como referencia: da valores muy bajos porque el Coin In incluye lo que
+             se paga de vuelta al jugador.</p>
         </div>
         <div>
           <strong>Cobertura de juego</strong>
@@ -124,9 +154,9 @@
           {% endif %}
         </section>
         <section class="chart-card">
-          <h3>📈 Ratio cortesías / Coin In por mes</h3>
-          <p class="info-note">ℹ️ Porcentaje del Coin In del mes que se devolvió en
-            cortesías. Sirve para ver si el costo se está descontrolando.</p>
+          <h3>📈 Ratio cortesías / ganancia teórica por mes</h3>
+          <p class="info-note">ℹ️ Porcentaje de la ganancia teórica del mes (Coin In × 0,065)
+            que se devolvió en cortesías. Sirve para ver si el costo se está descontrolando.</p>
           {% if comparativa %}
             <div class="chart-box"><canvas id="chart-analisis-ratio"></canvas></div>
           {% else %}
@@ -153,8 +183,9 @@
         </section>
         <section class="chart-card">
           <h3>👤 Clientes con más cortesías</h3>
-          <p class="info-note">ℹ️ Ordenados por monto recibido. "Sin juego" marca a quien
-            recibió cortesías y no registró Coin In en el área.</p>
+          <p class="info-note">ℹ️ Ordenados por monto recibido. El teórico de cada cliente es
+            su Coin In × 0,065 y el ratio son sus cortesías sobre ese teórico. "Sin juego"
+            marca a quien recibió cortesías y no registró Coin In en el área.</p>
           {% if top_clientes %}
             <div class="heatmap-scroll">
               <table class="record-table sortable-table" data-buscador>
@@ -164,9 +195,10 @@
                     <th>Cliente</th>
                     <th>Jornadas</th>
                     <th>Coin In</th>
+                    <th>Teórico (6,5%)</th>
                     <th>Cortesías</th>
                     <th>Monto cortesías</th>
-                    <th class="total-col">Ratio</th>
+                    <th class="total-col">Cortesías / teórico</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -176,9 +208,10 @@
                       <td>{{ c.jugador }}</td>
                       <td>{{ c.jornadas }}</td>
                       <td>{{ c.coin_in }}</td>
+                      <td>{{ c.teorico }}</td>
                       <td>{{ c.cortesias }}</td>
                       <td>{{ c.comps }}</td>
-                      <td class="total-col">{{ c.ratio }}</td>
+                      <td class="total-col">{{ c.ratio_teorico }}</td>
                     </tr>
                   {% endfor %}
                 </tbody>

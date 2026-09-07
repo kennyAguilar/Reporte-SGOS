@@ -25,6 +25,13 @@ from core.formato import fecha_hora, fecha_larga, mes_anio_es, mes_ingles, miles
 # Áreas soportadas y su etiqueta para la interfaz.
 AREAS = [("MDA", "MDA · Máquinas"), ("MDJ", "MDJ · Mesas")]
 
+# Ventaja teórica de la casa: del total jugado (Coin In) se asume que el casino
+# retiene un 6,5%. Ese "teórico" es la ganancia esperada del periodo y es la
+# base contra la que se mide el costo real de las cortesías (compararlas contra
+# el Coin In bruto da porcentajes irrisorios que no dicen nada del negocio).
+MARGEN_TEORICO = 0.065
+MARGEN_TEORICO_PCT = "6,5%"
+
 # Colores del donut de categorías (consistentes con DESIGN.md).
 _COLORES = [
     "#d4af37", "#24a148", "#78a9ff", "#ff832b",
@@ -206,7 +213,8 @@ def get_resumen(area, anio=None, mes=None, nombre=None):
 
             coin_in = int(r["coin_in"] or 0)
             comps = int(r["comps"] or 0)
-            ratio = round(comps * 100.0 / coin_in, 2) if coin_in else 0.0
+            teorico = coin_in * MARGEN_TEORICO
+            ratio = round(comps * 100.0 / teorico, 2) if teorico else 0.0
             return {
                 "mes_cargado": mes_ingles(r["max_jornada"]),
                 "hasta_jornada": fecha_larga(r["max_jornada"]),
@@ -214,19 +222,20 @@ def get_resumen(area, anio=None, mes=None, nombre=None):
                 "total_valor": pesos(coin_in),
                 "total_label": f"{pesos(comps)} en cortesías",
                 "ultima_valor": f"{ratio}%",
-                "ultima_label": "Cortesías sobre Coin In",
+                "ultima_label": f"Cortesías sobre teórico ({MARGEN_TEORICO_PCT})",
             }
     finally:
         conn.close()
 
 
 def get_kpis(area, anio=None, mes=None, nombre=None):
-    """Cuatro KPIs del análisis Comps vs Coin In del área.
+    """KPIs del análisis Comps vs Coin In del área.
 
-    1. Coin In del área (lo que el cliente jugó) y su promedio por jornada.
-    2. Cortesías entregadas (monto y cantidad).
-    3. Ratio cortesías/Coin In: cuánto se devuelve por cada peso jugado.
-    4. Cobertura: de los clientes que recibieron cortesías, cuántos jugaron.
+    1. Ganancia teórica = Coin In × 6,5% (lo que se espera ganar del juego).
+    2. Cortesías / teórico: qué parte de esa ganancia esperada se devolvió.
+    3. Coin In del área (lo que el cliente jugó) y su promedio por jornada.
+    4. Cortesías entregadas (monto y cantidad).
+    5. Cobertura: de los clientes que recibieron cortesías, cuántos jugaron.
     """
     cte, params = _cte(area, anio, mes, nombre)
     conn = get_connection()
@@ -266,6 +275,8 @@ def get_kpis(area, anio=None, mes=None, nombre=None):
     clientes_ambos = int(r.get("clientes_ambos") or 0)
 
     ratio = round(comps_monto * 100.0 / coin_in, 2) if coin_in else 0.0
+    teorico = coin_in * MARGEN_TEORICO
+    ratio_teorico = round(comps_monto * 100.0 / teorico, 2) if teorico else 0.0
     cobertura = (
         round(clientes_ambos * 100.0 / clientes_comps, 1) if clientes_comps else 0.0
     )
@@ -288,6 +299,17 @@ def get_kpis(area, anio=None, mes=None, nombre=None):
         "retorno": (
             pesos(round(coin_in / comps_monto)) if comps_monto else pesos(0)
         ),
+        "margen_pct": MARGEN_TEORICO_PCT,
+        "teorico": pesos(round(teorico)),
+        "teorico_dia": pesos(round(teorico / jornadas)) if jornadas else pesos(0),
+        "teorico_jugador": (
+            pesos(round(teorico / jugadores)) if jugadores else pesos(0)
+        ),
+        "ratio_teorico": f"{ratio_teorico}%",
+        "ratio_teorico_valor": ratio_teorico,
+        "retorno_teorico": (
+            pesos(round(teorico / comps_monto)) if comps_monto else pesos(0)
+        ),
         "cobertura": f"{cobertura}%",
         "clientes_ambos": miles(clientes_ambos),
         "clientes_sin_juego": miles(clientes_comps - clientes_ambos),
@@ -297,7 +319,10 @@ def get_kpis(area, anio=None, mes=None, nombre=None):
 def get_comparativa_por_mes(area, anio=None, mes=None, nombre=None):
     """Coin In vs Cortesías por mes, con el ratio de cada mes.
 
-    Devuelve {labels, coin_in, comps, ratio, meses_sin_juego} para los gráficos.
+    Devuelve {labels, coin_in, comps, teorico, ratio, ratio_teorico,
+    meses_sin_juego} para los gráficos. `ratio` compara contra el Coin In bruto
+    y `ratio_teorico` contra la ganancia esperada (Coin In × 6,5%), que es la
+    lectura que se muestra en pantalla.
     `meses_sin_juego` lista los meses que tienen cortesías pero NO tienen juego
     cargado: ahí el ratio no se puede calcular (sale 0) y hay que avisarlo, o se
     lee como "ese mes no costó nada" cuando en realidad falta el Excel.
@@ -335,21 +360,27 @@ def get_comparativa_por_mes(area, anio=None, mes=None, nombre=None):
         return None
 
     labels, coin_in, comps, ratio, sin_juego = [], [], [], [], []
+    teorico, ratio_teorico = [], []
     for f in filas:
         ci = int(f["coin_in"] or 0)
         co = int(f["comps"] or 0)
+        te = ci * MARGEN_TEORICO
         etiqueta = mes_anio_es(f["mes"])
         labels.append(etiqueta)
         coin_in.append(ci)
         comps.append(co)
+        teorico.append(round(te))
         ratio.append(round(co * 100.0 / ci, 2) if ci else 0.0)
+        ratio_teorico.append(round(co * 100.0 / te, 2) if te else 0.0)
         if co and not ci:
             sin_juego.append(etiqueta)
     return {
         "labels": labels,
         "coin_in": coin_in,
         "comps": comps,
+        "teorico": teorico,
         "ratio": ratio,
+        "ratio_teorico": ratio_teorico,
         "meses_sin_juego": sin_juego,
     }
 
@@ -401,17 +432,23 @@ def get_top_clientes(area, anio=None, mes=None, nombre=None, limit=25):
     for f in filas:
         coin_in = int(f["coin_in"] or 0)
         comps = int(f["comps"] or 0)
+        teorico = coin_in * MARGEN_TEORICO
         ratio = round(comps * 100.0 / coin_in, 1) if coin_in else None
+        ratio_teorico = round(comps * 100.0 / teorico, 1) if teorico else None
         salida.append(
             {
                 "cliente_id": f["cliente_id"],
                 "jugador": f["jugador"] or f"Tarjeta {f['cliente_id']}",
                 "coin_in": pesos(coin_in),
+                "teorico": pesos(round(teorico)),
                 "comps": pesos(comps),
                 "cortesias": miles(f["cortesias"]),
                 "jornadas": miles(f["jornadas"]),
                 # Sin juego el ratio es infinito: se marca aparte para la vista.
                 "ratio": f"{ratio}%" if ratio is not None else "Sin juego",
+                "ratio_teorico": (
+                    f"{ratio_teorico}%" if ratio_teorico is not None else "Sin juego"
+                ),
                 "sin_juego": coin_in == 0,
             }
         )
