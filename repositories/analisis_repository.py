@@ -144,6 +144,46 @@ def get_areas_con_datos():
         conn.close()
 
 
+def get_ids_invalidos(area, anio=None, mes=None, nombre=None):
+    """Cortesías del área con cliente_id inválido (notación científica).
+
+    Devuelve None si no hay ninguna (el aviso de la vista solo se muestra
+    cuando el problema realmente existe para el filtro actual).
+    """
+    filtros, params = ["TRIM(j.area) = %s", f"NOT ({_ID_VALIDO})"], [area]
+    if anio:
+        filtros.append("EXTRACT(YEAR FROM c.fecha_jornada) = %s")
+        params.append(int(anio))
+    if mes:
+        filtros.append("EXTRACT(MONTH FROM c.fecha_jornada) = %s")
+        params.append(int(mes))
+    if nombre:
+        filtros.append("(c.nombre_cliente ILIKE %s OR c.cliente_id ILIKE %s)")
+        params.append(f"%{nombre}%")
+        params.append(f"%{nombre}%")
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT COUNT(*) AS cortesias, COALESCE(SUM(c.micros), 0) AS monto
+                FROM comps c
+                JOIN jefaturas j ON j.usuario_id = c.usuario_id
+                WHERE {" AND ".join(filtros)}
+                """,
+                params,
+            )
+            r = cur.fetchone() or {}
+    finally:
+        conn.close()
+
+    cortesias = int(r.get("cortesias") or 0)
+    if not cortesias:
+        return None
+    return {"cortesias": miles(cortesias), "monto": pesos(r.get("monto"))}
+
+
 def get_resumen(area, anio=None, mes=None, nombre=None):
     """Tarjetas de resumen del header. None si el área no tiene datos."""
     cte, params = _cte(area, anio, mes, nombre)

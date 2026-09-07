@@ -113,6 +113,9 @@ def comparativa(area):
             analisis_repository.get_top_clientes, clave, anio, mes, nombre
         ),
         categorias=_safe(analisis_repository.get_categorias, clave, anio, mes, nombre),
+        ids_invalidos=_safe(
+            analisis_repository.get_ids_invalidos, clave, anio, mes, nombre
+        ),
         filtros=filtros,
         anios=anios,
         meses=MESES,

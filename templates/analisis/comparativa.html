@@ -85,13 +85,16 @@
           <p>De los clientes que recibieron cortesías en el área, qué porcentaje además
              registró juego. Los que no jugaron se detallan en el módulo Coin In Cero.</p>
         </div>
-        <div>
-          <strong>Clientes con ID inválido</strong>
-          <p>Las cortesías cuyo número de tarjeta se guardó en notación científica no se
-             pueden cruzar y quedan fuera de este análisis.</p>
-        </div>
       </div>
     </section>
+
+    {% if ids_invalidos %}
+      <section class="info-note info-note--warn">
+        ⚠️ {{ ids_invalidos.cortesias }} cortesías de {{ area }} ({{ ids_invalidos.monto }}) tienen un
+        número de tarjeta guardado en notación científica y quedan fuera de este análisis.
+        Vuelve a cargar ese Excel de Comps para repararlas.
+      </section>
+    {% endif %}
 
     {% if comparativa and comparativa.meses_sin_juego %}
       <section class="info-note info-note--warn">
