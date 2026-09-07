@@ -404,3 +404,73 @@ def construir_id_unico_comps(
         else str(fecha_real)
     )
     return f"{fecha_iso}_{cliente_id}_{descripcion_prod}_{micros}_{usuario_id}"
+
+
+# ---------------------------------------------------------------------------
+# Helpers específicos del Excel de Mesas (juegos de mesa / "Traking SGOS")
+# ---------------------------------------------------------------------------
+# El Excel de Mesas trae una fila POR SESIÓN de un cliente en una mesa (no
+# viene agregado por jugador y día como Coin In). Cada sesión aporta PUNTOS
+# OBTENIDOS, que el negocio convierte a un "seudo Coin In" multiplicando por
+# 1000, para poder comparar el juego de mesas con el Coin In de MDA/MDJ.
+
+
+def limpiar_id_sesion(valor):
+    """Devuelve ID_SESION como texto limpio (sin la parte decimal de pandas)."""
+    if _es_vacio(valor):
+        return ""
+    if isinstance(valor, float) and valor.is_integer():
+        return str(int(valor))
+    if isinstance(valor, int):
+        return str(valor)
+    return str(valor).strip()
+
+
+def normalizar_fecha_operacion(valor):
+    """Convierte FECHA_OPERACION (solo fecha, sin hora, dd-mm-aaaa) a date."""
+    if _es_vacio(valor):
+        raise ValueError("Fecha de operación vacía")
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    convertido = pd.to_datetime(valor, dayfirst=True, errors="coerce")
+    if pd.isna(convertido):
+        raise ValueError(f"Fecha de operación inválida: {valor!r}")
+    return convertido.date()
+
+
+def limpiar_puntos_obtenidos(valor):
+    """Convierte PUNTOS_OBTENIDOS a entero (base del seudo Coin In).
+
+    Vacío significa "sesión sin métricas de juego capturadas" (también vienen
+    vacíos HORA_ENTRADA/HANDLE/etc. en esas filas), no un error de la fila:
+    se guarda como 0, igual que `limpiar_entero_opcional` en Coin In.
+    """
+    if _es_vacio(valor):
+        return 0
+    if isinstance(valor, (int, float)):
+        return int(round(float(valor)))
+    texto = str(valor).strip()
+    limpio = "".join(c for c in texto if c.isdigit() or c == "-")
+    if not limpio or limpio == "-":
+        return 0
+    return int(limpio)
+
+
+def construir_id_unico_mesas(
+    id_sesion, fecha_operacion, id_cliente, mesa, juego, puntos_obtenidos
+):
+    """Crea un id_unico ESTABLE para evitar sesiones de Mesas duplicadas.
+
+    Preferimos ID_SESION (único por sesión en el sistema de mesas). Si viene
+    vacío, combinamos los datos de la fila normalizando la fecha a ISO.
+
+    Es estable: al subir el mismo Excel otra vez, la misma fila genera el
+    mismo id_unico y se detecta como duplicado.
+    """
+    base = limpiar_id_sesion(id_sesion)
+    if base:
+        return base
+    fecha_iso = fecha_operacion.isoformat()
+    return f"{fecha_iso}_{id_cliente}_{mesa}_{juego}_{puntos_obtenidos}"

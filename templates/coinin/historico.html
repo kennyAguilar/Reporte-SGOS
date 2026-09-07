@@ -10,8 +10,9 @@
 
 {% block body %}
 {% set active = "coinin" %}
-{% set filter_action = url_for('coinin.mda_historico' if sistema == 'MDA' else 'coinin.mdj_historico') %}
-{% set url_carga = url_for('upload.upload_coinin', sistema=sistema|lower) %}
+{% set _rutas_historico = {'MDA': 'coinin.mda_historico', 'MDJ': 'coinin.mdj_historico'} %}
+{% set filter_action = url_for(_rutas_historico.get(sistema, 'coinin.mda_historico')) %}
+{% set url_carga = url_for('upload.upload_mesas') if sistema == 'MDJ' else url_for('upload.upload_coinin', sistema=sistema|lower) %}
 {% include "partials/_header.html" with context %}
 
 <div class="dashboard-layout" id="dashboard-layout">

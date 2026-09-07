@@ -1,6 +1,10 @@
 {# Submenú de dos niveles del módulo Coin In.
    Nivel 1: sistema (MDA / MDJ). Nivel 2: vista (Dashboard / Histórico).
    Variables esperadas: sistema ("MDA"/"MDJ") y seccion ("dashboard"/"historico"). #}
+{% set _rutas_sistema = {
+  'MDA': ('coinin.mda_dashboard', 'coinin.mda_historico'),
+  'MDJ': ('coinin.mdj_dashboard', 'coinin.mdj_historico'),
+} %}
 <nav class="submenu">
   <a href="{{ url_for('coinin.mda_dashboard') }}"
      class="{{ 'active' if sistema == 'MDA' else '' }}">Coin In MDA</a>
@@ -8,16 +12,10 @@
      class="{{ 'active' if sistema == 'MDJ' else '' }}">Coin In MDJ</a>
 </nav>
 
+{% set _dash, _hist = _rutas_sistema.get(sistema, _rutas_sistema['MDA']) %}
 <nav class="submenu">
-  {% if sistema == 'MDA' %}
-    <a href="{{ url_for('coinin.mda_dashboard') }}"
-       class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
-    <a href="{{ url_for('coinin.mda_historico') }}"
-       class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
-  {% else %}
-    <a href="{{ url_for('coinin.mdj_dashboard') }}"
-       class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
-    <a href="{{ url_for('coinin.mdj_historico') }}"
-       class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
-  {% endif %}
+  <a href="{{ url_for(_dash) }}"
+     class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+  <a href="{{ url_for(_hist) }}"
+     class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
 </nav>

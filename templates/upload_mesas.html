@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Cargar Excel Mesas (Coin In MDJ) — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/upload.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="upload-wrap">
+  <div class="upload-card">
+    <div class="upload-eyebrow">Coin In MDJ</div>
+    <h1>Cargar Excel Mesas</h1>
+    <p class="sub">El reporte trae una fila por sesión de mesa. Los PUNTOS_OBTENIDOS de
+      cada sesión se multiplican por 1000 para obtener un Coin In equivalente, comparable
+      con MDA. El sistema evita duplicados por ID_SESION.</p>
+
+    <form method="post" action="{{ url_for('upload.upload_mesas') }}" enctype="multipart/form-data">
+      <div class="upload-field">
+        <label for="archivo">Archivo Excel (.xlsx)</label>
+        <input type="file" name="archivo" id="archivo" accept=".xlsx,.xls" required>
+        <div class="upload-hint">
+          Columnas requeridas: ID_SESION, ID_CLIENTE, NOMBRE, CATEGORIA, MESA, JUEGO,
+          FECHA_OPERACION, PUNTOS_OBTENIDOS.
+        </div>
+      </div>
+
+      <div class="upload-actions">
+        <button type="submit" class="btn-primary">Cargar</button>
+        <a href="{{ url_for('coinin.mdj_dashboard') }}" class="btn-secondary">Volver</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

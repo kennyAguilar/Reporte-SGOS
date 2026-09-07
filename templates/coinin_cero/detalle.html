@@ -64,7 +64,7 @@
                   <th class="col-nombre">Jugador / Jornada</th>
                   <th class="col-num">Cortesías</th>
                   <th class="col-num">Monto cortesías</th>
-                  <th>Jefe que entregó</th>
+                  <th>Jefe que entregó / Producto</th>
                   <th class="col-num">Premio ese día</th>
                 </tr>
               </thead>
@@ -88,7 +88,8 @@
                       <td class="col-num">{{ jor.monto_fmt }}</td>
                       <td>
                         {% for jefe in jor.jefes %}
-                          {{ jefe.jefe }}<span class="badge-area">{{ jefe.area }}</span>
+                          <div>{{ jefe.jefe }}<span class="badge-area">{{ jefe.area }}</span>
+                            — {{ jefe.producto }}</div>
                         {% endfor %}
                       </td>
                       <td class="col-num">{{ jor.premio_fmt }}</td>

@@ -13,7 +13,7 @@ from modules.getnet import getnet_bp
 from modules.home import home_bp
 from modules.premios import premios_bp
 from modules.upload import upload_bp
-from repositories import coinin_repository, config_repository, premios_repository
+from repositories import coinin_repository, config_repository, mesas_repository, premios_repository
 
 
 def create_app():
@@ -59,6 +59,10 @@ def create_app():
         pass
     try:
         coinin_repository.ensure_coinin_schema()
+    except Exception:
+        pass
+    try:
+        mesas_repository.ensure_mesas_schema()
     except Exception:
         pass
 

@@ -10,8 +10,9 @@
 
 {% block body %}
 {% set active = "coinin" %}
-{% set filter_action = url_for('coinin.mda_dashboard' if sistema == 'MDA' else 'coinin.mdj_dashboard') %}
-{% set url_carga = url_for('upload.upload_coinin', sistema=sistema|lower) %}
+{% set _rutas_dashboard = {'MDA': 'coinin.mda_dashboard', 'MDJ': 'coinin.mdj_dashboard'} %}
+{% set filter_action = url_for(_rutas_dashboard.get(sistema, 'coinin.mda_dashboard')) %}
+{% set url_carga = url_for('upload.upload_mesas') if sistema == 'MDJ' else url_for('upload.upload_coinin', sistema=sistema|lower) %}
 {% include "partials/_header.html" with context %}
 
 <div class="dashboard-layout" id="dashboard-layout">
@@ -44,12 +45,13 @@
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">Juegos jugados</div>
+          <div class="kpi-label">{{ 'Sesiones jugadas' if sistema == 'MDJ' else 'Juegos jugados' }}</div>
           <div class="kpi-value">{{ kpis.juegos }}</div>
           <div class="kpi-extra">
             <span><em>Promedio x jugador-día</em> {{ kpis.juegos_jugador }}</span>
           </div>
         </div>
+        {% if sistema != 'MDJ' %}
         <div class="kpi-card">
           <div class="kpi-label">Prom Jugado</div>
           <div class="kpi-value financiero">{{ kpis.prom_jugado }}</div>
@@ -57,12 +59,36 @@
             <span><em>Sobre el Coin In</em> {{ kpis.pct_promo }}</span>
           </div>
         </div>
+        {% endif %}
       </div>
     {% endif %}
 
     <section class="legend-card">
       <h3 class="legend-title">📒 Leyenda de cálculos</h3>
       <div class="legend-grid">
+        {% if sistema == 'MDJ' %}
+        <div>
+          <strong>Base de datos</strong>
+          <p>El reporte de Mesas (Coin In MDJ) trae una fila por <em>SESIÓN</em> del cliente
+             en una mesa (no viene agregado por día como MDA). Los filtros de año y mes
+             limitan todos los indicadores.</p>
+        </div>
+        <div>
+          <strong>Coin In total (equivalente)</strong>
+          <p>Suma de <em>PUNTOS_OBTENIDOS × 1000</em> de cada sesión: el "seudo Coin In" que
+             el negocio usa para comparar el juego de mesas con MDA.</p>
+        </div>
+        <div>
+          <strong>Jugadores únicos</strong>
+          <p>Cuenta <em>ID_CLIENTE</em> distintos. "Jugadores x jornada" divide los
+             jugador-día del periodo entre las jornadas.</p>
+        </div>
+        <div>
+          <strong>Sesiones jugadas</strong>
+          <p>Cuenta las sesiones (filas) del periodo. El promedio divide esas sesiones entre
+             los jugador-día distintos.</p>
+        </div>
+        {% else %}
         <div>
           <strong>Base de datos</strong>
           <p>El reporte de Coin In {{ sistema }} trae una fila por jugador y por Gaming Date
@@ -83,6 +109,7 @@
           <p>Suma del crédito promocional jugado. El porcentaje lo compara contra el Coin In
              del mismo periodo.</p>
         </div>
+        {% endif %}
       </div>
     </section>
 

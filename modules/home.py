@@ -8,6 +8,7 @@ from repositories import (
     coinin_repository,
     comps_repository,
     getnet_repository,
+    mesas_repository,
     premios_repository,
     upload_repository,
 )
@@ -45,7 +46,8 @@ def index():
     premios = _safe(premios_repository.get_resumen, anio, mes, nombre)
     comps = _safe(comps_repository.get_resumen, anio, mes, nombre)
     coinin_mda = _safe(coinin_repository.get_resumen, "MDA", anio, mes, nombre)
-    coinin_mdj = _safe(coinin_repository.get_resumen, "MDJ", anio, mes, nombre)
+    # MDJ (Mesa de Juegos) vive en su propia tabla `mesas`, no en `coinin`.
+    coinin_mdj = _safe(mesas_repository.get_resumen, "MDJ", anio, mes, nombre)
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
 
     anio_actual = datetime.now().year

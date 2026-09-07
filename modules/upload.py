@@ -15,15 +15,19 @@ from core.sgos_parse import (
     construir_id_unico,
     construir_id_unico_coinin,
     construir_id_unico_comps,
+    construir_id_unico_mesas,
     construir_id_unico_premios,
     limpiar_consumo_id,
     limpiar_entero_opcional,
     limpiar_id_cliente,
+    limpiar_id_sesion,
     limpiar_micros,
     limpiar_monto,
     limpiar_player_id,
+    limpiar_puntos_obtenidos,
     limpiar_texto,
     limpiar_usuario_id,
+    normalizar_fecha_operacion,
     normalizar_jornada,
     normalizar_maquina,
     normalizar_voucher,
@@ -34,6 +38,7 @@ from repositories import (
     comps_repository,
     config_repository,
     getnet_repository,
+    mesas_repository,
     premios_repository,
     upload_repository,
 )
@@ -97,7 +102,21 @@ COLUMNAS_REQUERIDAS_COININ = [
     "Prom Jugado",
     "Total Games played",
 ]
-SISTEMAS_COININ = {"mda": "MDA", "mdj": "MDJ"}
+SISTEMAS_COININ = {"mda": "MDA"}
+
+# Columnas obligatorias del Excel de Mesas ("Traking SGOS"), usado por Coin In MDJ.
+# ID_SESION identifica la sesión (se usa como id_unico); el resto son los
+# campos que se guardan en la tabla `mesas`.
+COLUMNAS_REQUERIDAS_MESAS = [
+    "ID_SESION",
+    "ID_CLIENTE",
+    "NOMBRE",
+    "CATEGORIA",
+    "MESA",
+    "JUEGO",
+    "FECHA_OPERACION",
+    "PUNTOS_OBTENIDOS",
+]
 
 
 def _fila_vacia(fila):
@@ -719,3 +738,127 @@ def upload_coinin(sistema):
     flash(mensaje, "success")
     endpoint = "coinin.mda_dashboard" if clave == "mda" else "coinin.mdj_dashboard"
     return redirect(url_for(endpoint))
+
+
+@upload_bp.route("/upload/mesas", methods=["GET", "POST"])
+@login_required
+def upload_mesas():
+    """Carga del Excel de Mesas ("Traking SGOS"), usado por la pestaña Coin In MDJ.
+
+    A diferencia de Coin In MDA, este reporte trae una fila POR SESIÓN (no
+    viene agregado por jugador y día). Reglas:
+      - FECHA_OPERACION es la jornada del registro (solo fecha, sin hora).
+      - PUNTOS_OBTENIDOS se guarda tal cual y además como `coin_in`
+        (PUNTOS_OBTENIDOS * 1000): el "seudo Coin In" equivalente a MDA/MDJ.
+      - id_unico = ID_SESION (único por sesión); si viniera vacío, se arma
+        con fecha + cliente + mesa + juego + puntos.
+    """
+    if request.method == "GET":
+        return render_template("upload_mesas.html", user=current_user())
+
+    # 1) Validar que llegó un archivo.
+    archivo = request.files.get("archivo")
+    if not archivo or not archivo.filename:
+        flash("Debe seleccionar un archivo Excel.", "error")
+        return redirect(url_for("upload.upload_mesas"))
+
+    # 2) Leer el Excel. "ID_CLIENTE" se fuerza a texto (mismo motivo que
+    #    "Id Cliente"/"Player ID": son IDs de 21 dígitos que no caben en float64).
+    try:
+        opciones = {"sheet_name": 0, "header": 0}
+        convert = _converters_texto(archivo, ["ID_CLIENTE"], **opciones)
+        df = _normalizar_columnas(pd.read_excel(archivo, converters=convert, **opciones))
+    except Exception as exc:
+        flash(f"No se pudo leer el Excel: {exc}", "error")
+        return redirect(url_for("upload.upload_mesas"))
+
+    # 3) Validar columnas requeridas; avisar exactamente cuál falta.
+    cols, faltantes = _resolver_columnas(df, COLUMNAS_REQUERIDAS_MESAS)
+    if faltantes:
+        flash(
+            "Faltan columnas requeridas en el Excel: " + ", ".join(faltantes),
+            "error",
+        )
+        return redirect(url_for("upload.upload_mesas"))
+
+    # 4) Recorrer filas, limpiar y transformar.
+    filas = []
+    procesados = 0
+    errores = []
+    for indice, registro in df.iterrows():
+        fila = registro.to_dict()
+        if _fila_vacia(fila):
+            continue  # ignoramos filas completamente vacías
+
+        # Número de fila en el Excel (header=0 -> datos desde la fila 2).
+        fila_excel = indice + 2
+        try:
+            id_sesion = limpiar_id_sesion(fila[cols["ID_SESION"]])
+            id_cliente = limpiar_id_cliente(fila[cols["ID_CLIENTE"]])
+            nombre = limpiar_texto(fila[cols["NOMBRE"]])
+            categoria = limpiar_texto(fila[cols["CATEGORIA"]])
+            mesa = limpiar_texto(fila[cols["MESA"]])
+            juego = limpiar_texto(fila[cols["JUEGO"]])
+            fecha_operacion = normalizar_fecha_operacion(fila[cols["FECHA_OPERACION"]])
+            puntos = limpiar_puntos_obtenidos(fila[cols["PUNTOS_OBTENIDOS"]])
+
+            filas.append(
+                {
+                    "id_unico": construir_id_unico_mesas(
+                        id_sesion, fecha_operacion, id_cliente, mesa, juego, puntos
+                    ),
+                    "id_sesion": id_sesion,
+                    "id_cliente": id_cliente,
+                    "nombre": nombre,
+                    "categoria": categoria,
+                    "mesa": mesa,
+                    "juego": juego,
+                    "fecha_operacion": fecha_operacion,
+                    "puntos_obtenidos": puntos,
+                    "coin_in": puntos * 1000,
+                }
+            )
+            procesados += 1
+        except Exception as exc:
+            errores.append(f"Fila {fila_excel}: {exc}")
+
+    # Si ninguna fila válida, avisamos.
+    if not filas:
+        detalle = " ".join(errores[:5]) if errores else ""
+        flash(f"No se encontraron filas válidas para cargar. {detalle}", "error")
+        return redirect(url_for("upload.upload_mesas"))
+
+    # 5) Insertar evitando duplicados (crea la tabla si aún no existe).
+    try:
+        mesas_repository.ensure_mesas_schema()
+        resultado = mesas_repository.insertar_filas(filas)
+    except Exception as exc:
+        flash(f"Error al guardar en la base de datos: {exc}", "error")
+        return redirect(url_for("upload.upload_mesas"))
+
+    # 6) Registrar la carga en upload_log.
+    usuario = (current_user() or {}).get("username") or "desconocido"
+    try:
+        upload_repository.registrar_carga(
+            tipo="mesas",
+            archivo=archivo.filename,
+            usuario=usuario,
+            rows_total=procesados,
+            rows_inserted=resultado["inserted"],
+            rows_skipped=resultado["skipped"],
+        )
+    except Exception:
+        pass  # el registro de log no debe romper la carga
+
+    # 7) Mostrar resumen al usuario (con ejemplos de error para poder
+    #    diagnosticar sin tener que revisar logs del servidor).
+    mensaje = (
+        f"Carga completada: {procesados} procesados, "
+        f"{resultado['inserted']} insertados, "
+        f"{resultado['skipped']} duplicados."
+    )
+    if errores:
+        mensaje += f" {len(errores)} fila(s) con error fueron omitidas."
+        mensaje += " Ejemplos: " + " | ".join(errores[:5])
+    flash(mensaje, "success")
+    return redirect(url_for("coinin.mdj_dashboard"))

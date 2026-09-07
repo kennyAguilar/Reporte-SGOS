@@ -91,16 +91,24 @@ def _cte(anio=None, mes=None, nombre=None, area=None):
                    COALESCE(NULLIF(TRIM(c.nombre_cliente), ''), 'Sin nombre') AS jugador,
                    NULLIF(TRIM(c.nombre), '')                               AS jefe,
                    NULLIF(TRIM(j.area), '')                                 AS area,
+                   COALESCE(NULLIF(TRIM(c.descripcion_prod), ''), 'Sin especificar') AS producto,
                    COUNT(*)                                                 AS cortesias,
                    COALESCE(SUM(c.micros), 0)                               AS monto
             FROM comps c
             LEFT JOIN jefaturas j ON j.usuario_id = c.usuario_id
             {where_comps}
-            GROUP BY 1, 2, 3, 4, 5
+            GROUP BY 1, 2, 3, 4, 5, 6
         ),
         jugado AS (
+            -- Se considera "jugó" tanto en máquinas (coinin: MDA/MDJ) como en
+            -- mesas (coin_in = PUNTOS_OBTENIDOS x 1000, seudo Coin In).
             SELECT jornada, player_id, SUM(coin_in) AS coin_in
-            FROM coinin
+            FROM (
+                SELECT jornada, player_id, coin_in FROM coinin
+                UNION ALL
+                SELECT fecha_operacion AS jornada, id_cliente AS player_id, coin_in
+                FROM mesas
+            ) todo
             {where_fecha}
             GROUP BY 1, 2
         ),
@@ -114,7 +122,7 @@ def _cte(anio=None, mes=None, nombre=None, area=None):
             GROUP BY 1, 2
         ),
         cero AS (
-            SELECT cj.jornada, cj.cliente_id, cj.jugador, cj.jefe, cj.area,
+            SELECT cj.jornada, cj.cliente_id, cj.jugador, cj.jefe, cj.area, cj.producto,
                    cj.cortesias, cj.monto,
                    COALESCE(pr.premios, 0)      AS premios,
                    COALESCE(pr.monto_premio, 0) AS monto_premio
@@ -453,8 +461,8 @@ def get_ranking_jefes(anio=None, mes=None, nombre=None, area=None, limit=15):
 def get_detalle(anio=None, mes=None, nombre=None, area=None):
     """Detalle expandible: jugador → jornadas en las que recibió comps sin jugar.
 
-    Cada jornada trae los jefes que entregaron (con su área) y el premio que el
-    jugador cobró ese mismo día, si lo hubo.
+    Cada jornada trae los jefes que entregaron (con su área y el producto
+    entregado) y el premio que el jugador cobró ese mismo día, si lo hubo.
 
     Devuelve una lista ordenada por monto de cortesías descendente:
         [{jugador, cliente_id, jornadas_n, cortesias, monto, monto_premio,
@@ -467,7 +475,7 @@ def get_detalle(anio=None, mes=None, nombre=None, area=None):
             cur.execute(
                 f"""
                 {cte}
-                SELECT jornada, cliente_id, jugador, jefe, area,
+                SELECT jornada, cliente_id, jugador, jefe, area, producto,
                        cortesias, monto, premios, monto_premio
                 FROM cero
                 ORDER BY jugador, jornada DESC
@@ -531,6 +539,7 @@ def get_detalle(anio=None, mes=None, nombre=None, area=None):
             {
                 "jefe": "Auto atención" if es_maquina else f["jefe"],
                 "area": "Máquina" if es_maquina else (f["area"] or "Sin área"),
+                "producto": f["producto"] or "Sin especificar",
                 "cantidad": cantidad,
                 "monto": monto,
             }
