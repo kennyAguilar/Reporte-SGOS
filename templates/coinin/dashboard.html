@@ -45,7 +45,7 @@
           </div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">{{ 'Sesiones jugadas' if sistema == 'MDJ' else 'Juegos jugados' }}</div>
+          <div class="kpi-label">{{ 'Sesiones jugadas' if sistema == 'MDJ' else 'Spins' }}</div>
           <div class="kpi-value">{{ kpis.juegos }}</div>
           <div class="kpi-extra">
             <span><em>Promedio x jugador-día</em> {{ kpis.juegos_jugador }}</span>
@@ -103,6 +103,12 @@
           <strong>Jugadores únicos</strong>
           <p>Cuenta <em>Player ID</em> distintos. "Jugadores x jornada" divide las filas del
              periodo entre las jornadas, porque un jugador puede repetirse en varios días.</p>
+        </div>
+        <div>
+          <strong>Spins</strong>
+          <p>Suma de la columna <em>total_games</em> de la base de datos (Total Games del
+             reporte de Coin In). El promedio divide esos spins entre los jugador-día
+             distintos del periodo.</p>
         </div>
         <div>
           <strong>Prom Jugado</strong>
