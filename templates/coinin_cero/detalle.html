@@ -28,10 +28,11 @@
     {% include "coinin_cero/_aviso.html" with context %}
 
     <section class="info-note">
-      ℹ️ Cada fila es un jugador que recibió cortesías sin registrar juego en
-      la pestaña de área seleccionada. Púlsala para ver las jornadas, quién
-      se las entregó y el premio que cobró ese mismo día. Un “—” en Premio
-      significa que no hubo pago esa jornada.
+      ℹ️ Cada fila es un jefe que entregó cortesías a jugadores que no
+      registraron juego en la pestaña de área seleccionada. Púlsala para ver
+      las jornadas, qué jugador recibió cada cortesía, el producto y el
+      premio que cobró ese mismo día. Un “—” en Premio significa que no hubo
+      pago esa jornada.
     </section>
 
     {% if tabs %}
@@ -56,15 +57,15 @@
             {{ grupo.resumen.monto }} en cortesías
           </p>
         {% endif %}
-        {% if grupo.jugadores %}
+        {% if grupo.jefes %}
           <div class="tabla-scroll">
             <table class="tabla-detalle">
               <thead>
                 <tr>
-                  <th class="col-nombre">Jugador / Jornada</th>
+                  <th class="col-nombre">Jefe que entregó / Jornada</th>
                   <th class="col-num">Cortesías</th>
                   <th class="col-num">Monto cortesías</th>
-                  <th>Jefe que entregó / Producto</th>
+                  <th>Jugador / Producto</th>
                   <th class="col-num">Premio ese día</th>
                   {% if grupo.con_monto_disponible %}
                     <th class="col-num">Coin In (periodo)</th>
@@ -73,31 +74,30 @@
                 </tr>
               </thead>
               <tbody>
-                {% for j in grupo.jugadores %}
-                  {% set jug_idx = loop.index %}
-                  <tr class="fila-grupo" data-grupo="cero-{{ jug_idx }}">
+                {% for jef in grupo.jefes %}
+                  {% set jef_idx = loop.index %}
+                  <tr class="fila-grupo" data-grupo="cero-{{ jef_idx }}">
                     <td class="col-nombre">
-                      <span class="caret">›</span>{{ j.jugador }}
-                      <span class="badge-area">{{ j.jornadas_n }} jornadas</span>
+                      <span class="caret">›</span>{{ jef.jefe }}
+                      <span class="badge-area">{{ jef.jornadas_n }} jornadas</span>
                     </td>
-                    <td class="col-num">{{ j.cortesias_fmt }}</td>
-                    <td class="col-num">{{ j.monto_fmt }}</td>
+                    <td class="col-num">{{ jef.cortesias_fmt }}</td>
+                    <td class="col-num">{{ jef.monto_fmt }}</td>
                     <td></td>
-                    <td class="col-num">{{ j.premio_fmt }}</td>
+                    <td class="col-num">{{ jef.premio_fmt }}</td>
                     {% if grupo.con_monto_disponible %}
-                      <td class="col-num">{{ j.coin_in_fmt }}</td>
-                      <td class="col-num">{{ j.monto_disponible_fmt }}</td>
+                      <td class="col-num">{{ jef.coin_in_fmt }}</td>
+                      <td class="col-num">{{ jef.monto_disponible_fmt }}</td>
                     {% endif %}
                   </tr>
-                  {% for jor in j.jornadas %}
-                    <tr class="fila-detalle" data-de="cero-{{ jug_idx }}" hidden>
+                  {% for jor in jef.jornadas %}
+                    <tr class="fila-detalle" data-de="cero-{{ jef_idx }}" hidden>
                       <td class="col-nombre col-hijo">{{ jor.fecha }}</td>
                       <td class="col-num">{{ jor.cortesias_fmt }}</td>
                       <td class="col-num">{{ jor.monto_fmt }}</td>
                       <td>
-                        {% for jefe in jor.jefes %}
-                          <div>{{ jefe.jefe }}<span class="badge-area">{{ jefe.area }}</span>
-                            — {{ jefe.producto }}</div>
+                        {% for jug in jor.jugadores %}
+                          <div>{{ jug.jugador }} — {{ jug.producto }}</div>
                         {% endfor %}
                       </td>
                       <td class="col-num">{{ jor.premio_fmt }}</td>
@@ -113,10 +113,10 @@
           </div>
           {% if grupo.con_monto_disponible %}
             <p class="info-note info-note--inline">
-              ℹ️ Monto disponible = Coin In del jugador en el periodo filtrado
-              (jornadas jugadas, no las de esta lista) × % Primario ×
-              % de su categoría, ambos configurables en Configuración ›
-              Categorías (margen).
+              ℹ️ Monto disponible = suma del disponible de cada jugador
+              DISTINTO que recibió cortesías de este jefe (Coin In del jugador
+              en el periodo filtrado × % Primario × % de su categoría, ambos
+              configurables en Configuración › Categorías (margen)).
             </p>
           {% endif %}
         {% else %}

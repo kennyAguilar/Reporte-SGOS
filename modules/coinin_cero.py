@@ -128,59 +128,77 @@ def _url_pestana(area, filtros):
 
 
 def _grupo_area(area, anio, mes, nombre):
-    """Arma el grupo del Detalle para un área: sus jugadores + resumen."""
-    jugadores = _safe(coinin_cero_repository.get_detalle, anio, mes, nombre, area)
-    if jugadores and area in _AREAS_CON_COIN_IN:
-        _agregar_monto_disponible(jugadores, area, anio, mes)
+    """Arma el grupo del Detalle para un área: sus jefes + resumen."""
+    jefes = _safe(coinin_cero_repository.get_detalle, anio, mes, nombre, area)
+    if jefes and area in _AREAS_CON_COIN_IN:
+        _agregar_monto_disponible(jefes, area, anio, mes)
     resumen = None
-    if jugadores:
-        casos = sum(j["jornadas_n"] for j in jugadores)
-        monto = sum(j["monto"] for j in jugadores)
+    if jefes:
+        # "Caso" sigue siendo (jugador, jornada); como ahora se agrupa por
+        # jefe, un mismo caso puede repartirse entre varios jefes distintos
+        # el mismo día, así que se cuenta con un set en vez de sumar jornadas_n.
+        casos = set()
+        clientes = set()
+        monto = 0
+        for jef in jefes:
+            monto += jef["monto"]
+            for jor in jef["jornadas"]:
+                for jug in jor["jugadores"]:
+                    casos.add((jug["cliente_id"], jor["jornada"]))
+                    clientes.add(jug["cliente_id"])
         resumen = {
-            "jugadores": miles(len(jugadores)),
-            "casos": miles(casos),
+            "jugadores": miles(len(clientes)),
+            "casos": miles(len(casos)),
             "monto": pesos(monto),
         }
     return {
         "area": area,
         "label": _etiqueta_area(area),
-        "jugadores": jugadores,
+        "jefes": jefes,
         "resumen": resumen,
         "con_monto_disponible": area in _AREAS_CON_COIN_IN,
     }
 
 
-def _agregar_monto_disponible(jugadores, area, anio, mes):
-    """Calcula "Monto disponible para invitaciones" de cada jugador.
+def _agregar_monto_disponible(jefes, area, anio, mes):
+    """Calcula "Monto disponible para invitaciones" agregado por jefe.
 
-    Fórmula pedida por el usuario, en dos pasos:
+    Fórmula pedida por el usuario, en dos pasos, POR JUGADOR:
       1) Teórico   = Coin In del jugador en el periodo × % Primario.
       2) Disponible = Teórico × % de su categoría (DREAMS/GOLD/BLACK/PLATINUM).
     El Coin In es el real de sus jornadas JUGADAS del mismo periodo (aquí,
     por definición del módulo, es 0 en los casos listados). Categoría sin
     match en la tabla de Configuración -> disponible 0 (no se puede calcular).
+
+    El total que se muestra en la fila del jefe es la SUMA del disponible de
+    cada jugador DISTINTO que recibió cortesías de él (un jugador que aparece
+    en varias jornadas del mismo jefe cuenta una sola vez, porque su Coin In
+    y su disponible son del periodo completo, no de un día puntual).
     """
     categorias = _safe(config_repository.list_categorias_margen) or []
     pct_por_categoria = {c["categoria"].strip().upper(): float(c["porcentaje"]) for c in categorias}
     pct_primario = pct_por_categoria.get("PRIMARIO", 0.0)
 
-    cliente_ids = [j["cliente_id"] for j in jugadores]
+    cliente_ids = sorted({cid for jef in jefes for cid in jef["cliente_ids"]})
     coin_in_map = _safe(
         coinin_cero_repository.get_coin_in_periodo, area, anio, mes, cliente_ids
     ) or {}
 
-    for j in jugadores:
-        datos = coin_in_map.get(j["cliente_id"]) or {"coin_in": 0, "categoria": None}
+    disponible_por_cliente = {}
+    for cid in cliente_ids:
+        datos = coin_in_map.get(cid) or {"coin_in": 0, "categoria": None}
         coin_in = datos["coin_in"]
         categoria_norm = _normalizar_categoria(datos["categoria"])
         pct_categoria = pct_por_categoria.get(categoria_norm)
-
         teorico = coin_in * pct_primario / 100
         disponible = teorico * pct_categoria / 100 if pct_categoria is not None else 0
+        disponible_por_cliente[cid] = {"coin_in": coin_in, "disponible": disponible}
 
-        j["coin_in_fmt"] = pesos(coin_in)
-        j["categoria"] = datos["categoria"] or "Sin categoría"
-        j["monto_disponible_fmt"] = pesos(disponible)
+    for jef in jefes:
+        coin_in_total = sum(disponible_por_cliente[cid]["coin_in"] for cid in jef["cliente_ids"])
+        disponible_total = sum(disponible_por_cliente[cid]["disponible"] for cid in jef["cliente_ids"])
+        jef["coin_in_fmt"] = pesos(coin_in_total)
+        jef["monto_disponible_fmt"] = pesos(disponible_total)
 
 
 @coinin_cero_bp.route("/detalle")

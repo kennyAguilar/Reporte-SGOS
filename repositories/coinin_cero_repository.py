@@ -459,14 +459,18 @@ def get_ranking_jefes(anio=None, mes=None, nombre=None, area=None, limit=15):
 
 
 def get_detalle(anio=None, mes=None, nombre=None, area=None):
-    """Detalle expandible: jugador → jornadas en las que recibió comps sin jugar.
+    """Detalle expandible: jefe que entregó → jornadas en las que entregó comps
+    a jugadores que no jugaron ese día.
 
-    Cada jornada trae los jefes que entregaron (con su área y el producto
-    entregado) y el premio que el jugador cobró ese mismo día, si lo hubo.
+    El foco es evaluar al JEFE (quién entrega cortesías a quien no juega), no
+    al jugador: cada jornada trae los jugadores a los que ese jefe le entregó
+    cortesías (con el producto) y el premio que cobraron ese mismo día, si
+    hubo. Un jugador puede aparecer bajo varios jefes distintos si recibió
+    cortesías de más de uno.
 
     Devuelve una lista ordenada por monto de cortesías descendente:
-        [{jugador, cliente_id, jornadas_n, cortesias, monto, monto_premio,
-          jornadas: [{fecha, cortesias, monto, jefes, premio, ...}]}, ...]
+        [{jefe, area, cliente_ids, jornadas_n, cortesias, monto, monto_premio,
+          jornadas: [{fecha, cortesias, monto, monto_premio, jugadores: [...]}]}, ...]
     """
     cte, params = _cte(anio, mes, nombre, area)
     conn = get_connection()
@@ -478,7 +482,7 @@ def get_detalle(anio=None, mes=None, nombre=None, area=None):
                 SELECT jornada, cliente_id, jugador, jefe, area, producto,
                        cortesias, monto, premios, monto_premio
                 FROM cero
-                ORDER BY jugador, jornada DESC
+                ORDER BY jefe NULLS LAST, jornada DESC
                 """,
                 params,
             )
@@ -489,56 +493,63 @@ def get_detalle(anio=None, mes=None, nombre=None, area=None):
     if not filas:
         return None
 
-    jugadores = {}
+    jefes = {}
     for f in filas:
-        cid = f["cliente_id"]
-        jug = jugadores.setdefault(
-            cid,
+        es_maquina = not f["jefe"]
+        jefe_nombre = "Auto atención" if es_maquina else f["jefe"]
+        jef = jefes.setdefault(
+            jefe_nombre,
             {
-                # Algunas cortesías vienen sin nombre; mostramos la tarjeta para
-                # que la fila siga siendo identificable.
-                "jugador": (
-                    f["jugador"] if f["jugador"] != "Sin nombre" else f"Tarjeta {cid}"
-                ),
-                "cliente_id": cid,
+                "jefe": jefe_nombre,
+                "area": "Máquina" if es_maquina else (f["area"] or "Sin área"),
                 "cortesias": 0,
                 "monto": 0,
                 "monto_premio": 0,
                 "con_premio": 0,
+                "_clientes": set(),
                 "_jornadas": {},
             },
         )
+
         clave = f["jornada"]
-        jor = jug["_jornadas"].get(clave)
+        jor = jef["_jornadas"].get(clave)
         if jor is None:
-            # El premio pertenece al par (jugador, jornada): se suma una sola vez,
-            # aunque el par aparezca repetido por cada jefe que entregó cortesías.
             jor = {
                 "jornada": clave,
                 "fecha": fecha_corta(clave),
                 "cortesias": 0,
                 "monto": 0,
-                "premios": int(f["premios"] or 0),
-                "monto_premio": int(f["monto_premio"] or 0),
-                "jefes": [],
+                "monto_premio": 0,
+                "jugadores": [],
+                "_vistos": set(),
             }
-            jug["_jornadas"][clave] = jor
-            jug["monto_premio"] += jor["monto_premio"]
-            if jor["premios"]:
-                jug["con_premio"] += 1
+            jef["_jornadas"][clave] = jor
+
+        cid = f["cliente_id"]
+        jef["_clientes"].add(cid)
+        # El premio pertenece al par (jugador, jornada): se suma una sola vez,
+        # aunque el jugador reciba varios productos del mismo jefe ese día.
+        if cid not in jor["_vistos"]:
+            jor["_vistos"].add(cid)
+            monto_premio_par = int(f["monto_premio"] or 0)
+            jor["monto_premio"] += monto_premio_par
+            jef["monto_premio"] += monto_premio_par
+            if f["premios"]:
+                jef["con_premio"] += 1
 
         cantidad = int(f["cortesias"] or 0)
         monto = int(f["monto"] or 0)
         jor["cortesias"] += cantidad
         jor["monto"] += monto
-        jug["cortesias"] += cantidad
-        jug["monto"] += monto
+        jef["cortesias"] += cantidad
+        jef["monto"] += monto
 
-        es_maquina = not f["jefe"]
-        jor["jefes"].append(
+        jor["jugadores"].append(
             {
-                "jefe": "Auto atención" if es_maquina else f["jefe"],
-                "area": "Máquina" if es_maquina else (f["area"] or "Sin área"),
+                "jugador": (
+                    f["jugador"] if f["jugador"] != "Sin nombre" else f"Tarjeta {cid}"
+                ),
+                "cliente_id": cid,
                 "producto": f["producto"] or "Sin especificar",
                 "cantidad": cantidad,
                 "monto": monto,
@@ -546,21 +557,23 @@ def get_detalle(anio=None, mes=None, nombre=None, area=None):
         )
 
     salida = []
-    for jug in jugadores.values():
+    for jef in jefes.values():
         jornadas = sorted(
-            jug.pop("_jornadas").values(), key=lambda j: j["jornada"], reverse=True
+            jef.pop("_jornadas").values(), key=lambda j: j["jornada"], reverse=True
         )
         for j in jornadas:
-            j["jefes"].sort(key=lambda x: x["monto"], reverse=True)
+            j.pop("_vistos", None)
+            j["jugadores"].sort(key=lambda x: x["monto"], reverse=True)
             j["cortesias_fmt"] = miles(j["cortesias"])
             j["monto_fmt"] = pesos(j["monto"])
-            j["premio_fmt"] = pesos(j["monto_premio"]) if j["premios"] else "—"
-        jug["jornadas"] = jornadas
-        jug["jornadas_n"] = len(jornadas)
-        jug["cortesias_fmt"] = miles(jug["cortesias"])
-        jug["monto_fmt"] = pesos(jug["monto"])
-        jug["premio_fmt"] = pesos(jug["monto_premio"]) if jug["con_premio"] else "—"
-        salida.append(jug)
+            j["premio_fmt"] = pesos(j["monto_premio"]) if j["monto_premio"] else "—"
+        jef["jornadas"] = jornadas
+        jef["jornadas_n"] = len(jornadas)
+        jef["cliente_ids"] = jef.pop("_clientes")
+        jef["cortesias_fmt"] = miles(jef["cortesias"])
+        jef["monto_fmt"] = pesos(jef["monto"])
+        jef["premio_fmt"] = pesos(jef["monto_premio"]) if jef["con_premio"] else "—"
+        salida.append(jef)
 
     salida.sort(key=lambda j: j["monto"], reverse=True)
     return salida
