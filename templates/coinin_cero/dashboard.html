@@ -61,6 +61,21 @@
             <span><em>Monto pagado</em> {{ kpis.monto_premio }}</span>
           </div>
         </div>
+        <div class="kpi-card kpi-card--donut">
+          <div class="kpi-label">Reparto por área</div>
+          {% if areas %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-cero-areas"></canvas></div>
+              <ul class="donut-legend">
+                {% for a in areas %}
+                  <li><span class="dot dot--cat{{ loop.index0 % 8 }}"></span>{{ a.label }} <strong>{{ a.pct }}%</strong></li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </div>
       </div>
     {% endif %}
 
@@ -118,63 +133,43 @@
         </section>
       </div>
 
-      <div class="charts-row">
-        <section class="chart-card">
-          <h3>🍩 Reparto por área</h3>
-          {% if areas %}
-            <div class="donut-wrap">
-              <div class="chart-box chart-box--mini"><canvas id="chart-cero-areas"></canvas></div>
-              <ul class="donut-legend">
-                {% for a in areas %}
-                  <li>
-                    <span class="dot" style="background: {{ a.color }}"></span>
-                    {{ a.label }} <strong>{{ a.pct }}%</strong>
-                  </li>
-                {% endfor %}
-              </ul>
-            </div>
-          {% else %}
-            <div class="empty-state">Sin datos.</div>
-          {% endif %}
-        </section>
-        <section class="chart-card">
-          <h3>👔 Jefes con más cortesías sin juego</h3>
-          {% if jefes %}
-            <div class="heatmap-scroll">
-              <table class="record-table sortable-table">
-                <thead>
+      <section class="chart-card">
+        <h3>👔 Jefes con más cortesías sin juego</h3>
+        {% if jefes %}
+          <div class="heatmap-scroll">
+            <table class="record-table sortable-table">
+              <thead>
+                <tr>
+                  <th class="rank">#</th>
+                  <th>Jefe</th>
+                  <th>Área</th>
+                  <th>Casos</th>
+                  <th>Jugadores</th>
+                  <th>Cortesías</th>
+                  <th>Monto</th>
+                  <th>Con premio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for j in jefes %}
                   <tr>
-                    <th class="rank">#</th>
-                    <th>Jefe</th>
-                    <th>Área</th>
-                    <th>Casos</th>
-                    <th>Jugadores</th>
-                    <th>Cortesías</th>
-                    <th>Monto</th>
-                    <th>Con premio</th>
+                    <td class="rank">{{ loop.index }}</td>
+                    <td>{{ j.jefe }}</td>
+                    <td>{{ j.area }}</td>
+                    <td>{{ j.casos_fmt }}</td>
+                    <td>{{ j.jugadores_fmt }}</td>
+                    <td>{{ j.cortesias_fmt }}</td>
+                    <td>{{ j.monto_fmt }}</td>
+                    <td>{{ j.con_premio_fmt }}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {% for j in jefes %}
-                    <tr>
-                      <td class="rank">{{ loop.index }}</td>
-                      <td>{{ j.jefe }}</td>
-                      <td>{{ j.area }}</td>
-                      <td>{{ j.casos_fmt }}</td>
-                      <td>{{ j.jugadores_fmt }}</td>
-                      <td>{{ j.cortesias_fmt }}</td>
-                      <td>{{ j.monto_fmt }}</td>
-                      <td>{{ j.con_premio_fmt }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          {% else %}
-            <div class="empty-state">Sin datos.</div>
-          {% endif %}
-        </section>
-      </div>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">Sin datos.</div>
+        {% endif %}
+      </section>
 
       {# Datos para Chart.js (se leen desde charts.js) #}
       <script id="coinin-cero-data" type="application/json">
