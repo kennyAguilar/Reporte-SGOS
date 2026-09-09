@@ -13,6 +13,10 @@ Cubre dos áreas:
 
 3. Jefaturas: datos maestros (usuario_id, nombre, area) que el módulo COMPS
    usará para cruzar las operaciones con su jefatura. Se administra a mano.
+
+4. Categorías: % de margen teórico por categoría de jugador (DREAMS, GOLD,
+   BLACK, PLATINUM, AUTOEXCLUIDO, Primario). Tabla de referencia; aún sin uso
+   en los cálculos de Análisis.
 """
 from werkzeug.security import generate_password_hash
 
@@ -44,6 +48,29 @@ def ensure_schema():
                     created_at timestamptz  NOT NULL DEFAULT now(),
                     updated_at timestamptz  NOT NULL DEFAULT now()
                 )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS categorias_margen (
+                    id         serial PRIMARY KEY,
+                    categoria  varchar(100)  NOT NULL UNIQUE,
+                    porcentaje numeric(5, 2) NOT NULL DEFAULT 0,
+                    created_at timestamptz   NOT NULL DEFAULT now(),
+                    updated_at timestamptz   NOT NULL DEFAULT now()
+                )
+                """
+            )
+            cur.execute(
+                """
+                INSERT INTO categorias_margen (categoria, porcentaje) VALUES
+                    ('DREAMS', 0.0),
+                    ('DREAMS GOLD', 2.0),
+                    ('DREAMS BLACK', 3.0),
+                    ('DREAMS PLATINUM', 4.0),
+                    ('AUTOEXCLUIDO', 0.0),
+                    ('Primario', 6.5)
+                ON CONFLICT (categoria) DO NOTHING
                 """
             )
         conn.commit()
@@ -289,6 +316,80 @@ def delete_jefatura(id):
     try:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM jefaturas WHERE id = %s", (id,))
+            eliminado = cur.rowcount > 0
+        conn.commit()
+        return eliminado
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Categorías (% de margen teórico por categoría de jugador)
+# ---------------------------------------------------------------------------
+def list_categorias_margen():
+    """Lista todas las categorías con su % de margen, ordenadas por id."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, categoria, porcentaje
+                FROM categorias_margen
+                ORDER BY id
+                """
+            )
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def create_categoria_margen(categoria, porcentaje):
+    """Crea una categoría. Devuelve True si se creó, False si ya existía."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO categorias_margen (categoria, porcentaje)
+                VALUES (%s, %s)
+                ON CONFLICT (categoria) DO NOTHING
+                RETURNING id
+                """,
+                (categoria, porcentaje),
+            )
+            creado = cur.fetchone() is not None
+        conn.commit()
+        return creado
+    finally:
+        conn.close()
+
+
+def update_categoria_margen(id, categoria, porcentaje):
+    """Actualiza una categoría existente. Devuelve True si existía."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE categorias_margen
+                SET categoria = %s, porcentaje = %s, updated_at = now()
+                WHERE id = %s
+                """,
+                (categoria, porcentaje, id),
+            )
+            actualizado = cur.rowcount > 0
+        conn.commit()
+        return actualizado
+    finally:
+        conn.close()
+
+
+def delete_categoria_margen(id):
+    """Elimina una categoría por id. Devuelve True si existía."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM categorias_margen WHERE id = %s", (id,))
             eliminado = cur.rowcount > 0
         conn.commit()
         return eliminado

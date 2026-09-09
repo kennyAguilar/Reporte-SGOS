@@ -44,6 +44,7 @@ def index():
     usuarios = _safe(config_repository.list_users) or []
     jefaturas = _safe(config_repository.list_jefaturas) or []
     areas = _safe(config_repository.list_areas) or []
+    categorias_margen = _safe(config_repository.list_categorias_margen) or []
     return render_template(
         "config/index.html",
         user=current_user(),
@@ -53,6 +54,7 @@ def index():
         usuarios=usuarios,
         jefaturas=jefaturas,
         areas=areas,
+        categorias_margen=categorias_margen,
     )
 
 
@@ -180,3 +182,75 @@ def eliminar_jefatura():
         except Exception:
             flash("No se pudo eliminar la jefatura.", "error")
     return redirect(url_for("config.index", seccion="jefaturas"))
+
+
+@config_bp.route("/categorias", methods=["POST"])
+@admin_required
+def crear_categoria_margen():
+    """Crea una nueva categoría con su % de margen."""
+    categoria = (request.form.get("categoria") or "").strip()
+    porcentaje_raw = (request.form.get("porcentaje") or "").strip().replace(",", ".")
+
+    if not categoria or not porcentaje_raw:
+        flash("Categoría y porcentaje son obligatorios.", "error")
+    else:
+        try:
+            porcentaje = float(porcentaje_raw)
+        except ValueError:
+            flash("El porcentaje debe ser un número.", "error")
+        else:
+            try:
+                creado = config_repository.create_categoria_margen(categoria, porcentaje)
+                if creado:
+                    flash(f"Categoría «{categoria}» creada.", "success")
+                else:
+                    flash(f"La categoría «{categoria}» ya existe.", "error")
+            except Exception:
+                flash("No se pudo crear la categoría.", "error")
+    return redirect(url_for("config.index", seccion="categorias"))
+
+
+@config_bp.route("/categorias/editar", methods=["POST"])
+@admin_required
+def editar_categoria_margen():
+    """Actualiza una categoría existente."""
+    id = (request.form.get("id") or "").strip()
+    categoria = (request.form.get("categoria") or "").strip()
+    porcentaje_raw = (request.form.get("porcentaje") or "").strip().replace(",", ".")
+
+    if not id or not categoria or not porcentaje_raw:
+        flash("Categoría y porcentaje son obligatorios.", "error")
+    else:
+        try:
+            porcentaje = float(porcentaje_raw)
+        except ValueError:
+            flash("El porcentaje debe ser un número.", "error")
+        else:
+            try:
+                ok = config_repository.update_categoria_margen(id, categoria, porcentaje)
+                if ok:
+                    flash(f"Categoría «{categoria}» actualizada.", "success")
+                else:
+                    flash("No se encontró la categoría.", "error")
+            except Exception:
+                flash("No se pudo actualizar la categoría.", "error")
+    return redirect(url_for("config.index", seccion="categorias"))
+
+
+@config_bp.route("/categorias/eliminar", methods=["POST"])
+@admin_required
+def eliminar_categoria_margen():
+    """Elimina una categoría."""
+    id = (request.form.get("id") or "").strip()
+    if not id:
+        flash("Categoría no válida.", "error")
+    else:
+        try:
+            ok = config_repository.delete_categoria_margen(id)
+            if ok:
+                flash("Categoría eliminada.", "success")
+            else:
+                flash("No se encontró la categoría.", "error")
+        except Exception:
+            flash("No se pudo eliminar la categoría.", "error")
+    return redirect(url_for("config.index", seccion="categorias"))

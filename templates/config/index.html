@@ -26,6 +26,8 @@
        class="{{ 'active' if seccion == 'usuarios' else '' }}">Gestión de usuarios</a>
     <a href="{{ url_for('config.index', seccion='jefaturas') }}"
        class="{{ 'active' if seccion == 'jefaturas' else '' }}">Jefaturas</a>
+    <a href="{{ url_for('config.index', seccion='categorias') }}"
+       class="{{ 'active' if seccion == 'categorias' else '' }}">Categorías (margen)</a>
     <a href="{{ url_for('config.index', seccion='password') }}"
        class="{{ 'active' if seccion == 'password' else '' }}">Cambiar contraseña</a>
   </nav>
@@ -193,6 +195,68 @@
         </table>
       {% else %}
         <div class="empty-state">No hay jefaturas registradas. Agrega la primera arriba.</div>
+      {% endif %}
+    </section>
+
+  {# --- Sección: Categorías (margen) --- #}
+  {% elif seccion == 'categorias' %}
+    <section class="config-card">
+      <h3>Agregar categoría</h3>
+      <p class="config-help">
+        % de margen teórico por categoría de jugador (DREAMS, GOLD, BLACK,
+        PLATINUM, AUTOEXCLUIDO). <strong>Primario</strong> es el % por defecto
+        para jugadores sin categoría asignada. Tabla de referencia, aún sin
+        uso en los cálculos de Análisis.
+      </p>
+      <form method="post" action="{{ url_for('config.crear_categoria_margen') }}" class="config-form">
+        <div class="field">
+          <label for="c-categoria">Categoría</label>
+          <input type="text" name="categoria" id="c-categoria" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="c-porcentaje">Porcentaje (%)</label>
+          <input type="text" name="porcentaje" id="c-porcentaje" required autocomplete="off"
+                 placeholder="6,5">
+        </div>
+        <button type="submit" class="btn-primary">Agregar categoría</button>
+      </form>
+    </section>
+
+    <section class="config-card">
+      <h3>Categorías registradas</h3>
+      {% if categorias_margen %}
+        <table class="config-table">
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th class="num">Porcentaje</th>
+              <th class="estado">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in categorias_margen %}
+              <tr>
+                <td>{{ c.categoria }}</td>
+                <td class="num">{{ c.porcentaje }}%</td>
+                <td class="estado">
+                  <form method="post" action="{{ url_for('config.editar_categoria_margen') }}" class="jefatura-row-form">
+                    <input type="hidden" name="id" value="{{ c.id }}">
+                    <input type="text" name="categoria" value="{{ c.categoria }}" required title="Categoría">
+                    <input type="text" name="porcentaje" value="{{ c.porcentaje }}" required title="Porcentaje">
+                    <button type="submit" class="btn-secondary">Guardar</button>
+                  </form>
+                  <form method="post" action="{{ url_for('config.eliminar_categoria_margen') }}"
+                        onsubmit="return confirm('¿Eliminar la categoría «{{ c.categoria }}»?');">
+                    <input type="hidden" name="id" value="{{ c.id }}">
+                    <button type="submit" class="btn-danger">Eliminar</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">No hay categorías registradas.</div>
       {% endif %}
     </section>
 
