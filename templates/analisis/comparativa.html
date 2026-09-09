@@ -66,6 +66,21 @@
             <span><em>Con cortesía sin juego</em> {{ kpis.clientes_sin_juego }}</span>
           </div>
         </div>
+        <div class="kpi-card kpi-card--donut">
+          <div class="kpi-label">Gasto por categoría</div>
+          {% if categorias %}
+            <div class="donut-wrap">
+              <div class="chart-box chart-box--mini"><canvas id="chart-analisis-categorias"></canvas></div>
+              <ul class="donut-legend">
+                {% for c in categorias %}
+                  <li><span class="dot dot--cat{{ loop.index0 % 8 }}"></span>{{ c.label }} <strong>{{ c.pct }}%</strong></li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <div class="empty-state">Sin datos.</div>
+          {% endif %}
+        </div>
       </div>
     {% endif %}
 
@@ -165,28 +180,12 @@
         </section>
       </div>
 
-      <div class="charts-row">
-        <section class="chart-card">
-          <h3>🍩 Gasto en cortesías por categoría</h3>
-          {% if categorias %}
-            <div class="donut-wrap">
-              <div class="chart-box chart-box--mini"><canvas id="chart-analisis-categorias"></canvas></div>
-              <ul class="donut-legend">
-                {% for c in categorias %}
-                  <li><span class="dot dot--cat{{ loop.index0 % 8 }}"></span>{{ c.label }} <strong>{{ c.pct }}%</strong></li>
-                {% endfor %}
-              </ul>
-            </div>
-          {% else %}
-            <div class="empty-state">Sin datos.</div>
-          {% endif %}
-        </section>
-        <section class="chart-card">
-          <h3>👤 Clientes con más cortesías</h3>
-          <p class="info-note">ℹ️ Ordenados por monto recibido. El teórico de cada cliente es
-            su Coin In × 0,065 y el ratio son sus cortesías sobre ese teórico. "Sin juego"
-            marca a quien recibió cortesías y no registró Coin In en el área.</p>
-          {% if top_clientes %}
+      <section class="chart-card">
+        <h3>👤 Clientes con más cortesías</h3>
+        <p class="info-note">ℹ️ Ordenados por monto recibido. El teórico de cada cliente es
+          su Coin In × 0,065 y el ratio son sus cortesías sobre ese teórico. "Sin juego"
+          marca a quien recibió cortesías y no registró Coin In en el área.</p>
+        {% if top_clientes %}
             <div class="heatmap-scroll">
               <table class="record-table sortable-table" data-buscador>
                 <thead>
