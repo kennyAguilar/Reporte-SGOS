@@ -14,7 +14,7 @@ from flask import Blueprint, render_template, request, url_for
 
 from core.auth import current_user, login_required
 from core.formato import miles, pesos
-from repositories import coinin_cero_repository
+from repositories import coinin_cero_repository, config_repository
 
 coinin_cero_bp = Blueprint("coinin_cero", __name__, url_prefix="/coinin-cero")
 
@@ -28,6 +28,22 @@ MESES = [
 # MRK primero (orden pedido por el usuario); cualquier otra área (incluida
 # "Auto atención") va después, en el orden que devuelva la base.
 _ORDEN_AREAS = ["MDA", "MDJ", "MRK"]
+
+# "Monto disponible" (Coin In × Primario × % Categoría) solo tiene fuente de
+# Coin In real para estas dos áreas (tablas coinin/mesas). Variantes de
+# categoría que llegan sin el prefijo "DREAMS" desde los Excel de origen.
+_AREAS_CON_COIN_IN = ("MDA", "MDJ")
+_ALIAS_CATEGORIA = {
+    "BLACK": "DREAMS BLACK",
+    "GOLD": "DREAMS GOLD",
+    "PLATINUM": "DREAMS PLATINUM",
+}
+
+
+def _normalizar_categoria(categoria):
+    """Homologa variantes de categoría a las claves de categorias_margen."""
+    cat = (categoria or "").strip().upper()
+    return _ALIAS_CATEGORIA.get(cat, cat)
 
 
 def _safe(func, *args, **kwargs):
@@ -114,6 +130,8 @@ def _url_pestana(area, filtros):
 def _grupo_area(area, anio, mes, nombre):
     """Arma el grupo del Detalle para un área: sus jugadores + resumen."""
     jugadores = _safe(coinin_cero_repository.get_detalle, anio, mes, nombre, area)
+    if jugadores and area in _AREAS_CON_COIN_IN:
+        _agregar_monto_disponible(jugadores, area, anio, mes)
     resumen = None
     if jugadores:
         casos = sum(j["jornadas_n"] for j in jugadores)
@@ -128,7 +146,41 @@ def _grupo_area(area, anio, mes, nombre):
         "label": _etiqueta_area(area),
         "jugadores": jugadores,
         "resumen": resumen,
+        "con_monto_disponible": area in _AREAS_CON_COIN_IN,
     }
+
+
+def _agregar_monto_disponible(jugadores, area, anio, mes):
+    """Calcula "Monto disponible para invitaciones" de cada jugador.
+
+    Fórmula pedida por el usuario, en dos pasos:
+      1) Teórico   = Coin In del jugador en el periodo × % Primario.
+      2) Disponible = Teórico × % de su categoría (DREAMS/GOLD/BLACK/PLATINUM).
+    El Coin In es el real de sus jornadas JUGADAS del mismo periodo (aquí,
+    por definición del módulo, es 0 en los casos listados). Categoría sin
+    match en la tabla de Configuración -> disponible 0 (no se puede calcular).
+    """
+    categorias = _safe(config_repository.list_categorias_margen) or []
+    pct_por_categoria = {c["categoria"].strip().upper(): float(c["porcentaje"]) for c in categorias}
+    pct_primario = pct_por_categoria.get("PRIMARIO", 0.0)
+
+    cliente_ids = [j["cliente_id"] for j in jugadores]
+    coin_in_map = _safe(
+        coinin_cero_repository.get_coin_in_periodo, area, anio, mes, cliente_ids
+    ) or {}
+
+    for j in jugadores:
+        datos = coin_in_map.get(j["cliente_id"]) or {"coin_in": 0, "categoria": None}
+        coin_in = datos["coin_in"]
+        categoria_norm = _normalizar_categoria(datos["categoria"])
+        pct_categoria = pct_por_categoria.get(categoria_norm)
+
+        teorico = coin_in * pct_primario / 100
+        disponible = teorico * pct_categoria / 100 if pct_categoria is not None else 0
+
+        j["coin_in_fmt"] = pesos(coin_in)
+        j["categoria"] = datos["categoria"] or "Sin categoría"
+        j["monto_disponible_fmt"] = pesos(disponible)
 
 
 @coinin_cero_bp.route("/detalle")

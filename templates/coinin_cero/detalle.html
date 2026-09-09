@@ -66,6 +66,10 @@
                   <th class="col-num">Monto cortesías</th>
                   <th>Jefe que entregó / Producto</th>
                   <th class="col-num">Premio ese día</th>
+                  {% if grupo.con_monto_disponible %}
+                    <th class="col-num">Coin In (periodo)</th>
+                    <th class="col-num">Monto disponible</th>
+                  {% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -80,6 +84,10 @@
                     <td class="col-num">{{ j.monto_fmt }}</td>
                     <td></td>
                     <td class="col-num">{{ j.premio_fmt }}</td>
+                    {% if grupo.con_monto_disponible %}
+                      <td class="col-num">{{ j.coin_in_fmt }}</td>
+                      <td class="col-num">{{ j.monto_disponible_fmt }}</td>
+                    {% endif %}
                   </tr>
                   {% for jor in j.jornadas %}
                     <tr class="fila-detalle" data-de="cero-{{ jug_idx }}" hidden>
@@ -93,12 +101,24 @@
                         {% endfor %}
                       </td>
                       <td class="col-num">{{ jor.premio_fmt }}</td>
+                      {% if grupo.con_monto_disponible %}
+                        <td class="col-num">—</td>
+                        <td class="col-num">—</td>
+                      {% endif %}
                     </tr>
                   {% endfor %}
                 {% endfor %}
               </tbody>
             </table>
           </div>
+          {% if grupo.con_monto_disponible %}
+            <p class="info-note info-note--inline">
+              ℹ️ Monto disponible = Coin In del jugador en el periodo filtrado
+              (jornadas jugadas, no las de esta lista) × % Primario ×
+              % de su categoría, ambos configurables en Configuración ›
+              Categorías (margen).
+            </p>
+          {% endif %}
         {% else %}
           <div class="empty-state">Sin casos de Coin In Cero en esta área para el filtro.</div>
         {% endif %}

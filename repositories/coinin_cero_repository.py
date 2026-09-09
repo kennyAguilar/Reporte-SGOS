@@ -564,3 +564,59 @@ def get_detalle(anio=None, mes=None, nombre=None, area=None):
 
     salida.sort(key=lambda j: j["monto"], reverse=True)
     return salida
+
+
+def get_coin_in_periodo(area, anio, mes, cliente_ids):
+    """Coin In real (jornadas jugadas) y categoría de cada jugador en el periodo.
+
+    Se usa para el "Monto disponible": el jugador tuvo Coin In cero justo en
+    los casos de este módulo, pero puede haber jugado otros días del mismo
+    periodo (año/mes filtrado) — ese es el Coin In que se multiplica por los
+    porcentajes de Configuración. Solo existe fuente para MDA (tabla `coinin`)
+    y MDJ (tabla `mesas`); cualquier otra área devuelve {}.
+
+    Devuelve {cliente_id: {"coin_in": int, "categoria": str|None}}.
+    """
+    if area not in ("MDA", "MDJ") or not cliente_ids:
+        return {}
+
+    if area == "MDA":
+        tabla_sql = """
+            SELECT player_id AS cliente_id,
+                   SUM(coin_in) AS coin_in,
+                   MAX(player_level) AS categoria
+            FROM coinin
+            WHERE sistema = 'MDA' AND player_id = ANY(%s)
+        """
+        campo_fecha = "jornada"
+    else:
+        tabla_sql = """
+            SELECT id_cliente AS cliente_id,
+                   SUM(coin_in) AS coin_in,
+                   MAX(categoria) AS categoria
+            FROM mesas
+            WHERE id_cliente = ANY(%s)
+        """
+        campo_fecha = "fecha_operacion"
+
+    params = [list(cliente_ids)]
+    if anio:
+        tabla_sql += f" AND EXTRACT(YEAR FROM {campo_fecha}) = %s"
+        params.append(int(anio))
+    if mes:
+        tabla_sql += f" AND EXTRACT(MONTH FROM {campo_fecha}) = %s"
+        params.append(int(mes))
+    tabla_sql += " GROUP BY 1"
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(tabla_sql, params)
+            filas = cur.fetchall()
+    finally:
+        conn.close()
+
+    return {
+        f["cliente_id"]: {"coin_in": int(f["coin_in"] or 0), "categoria": f["categoria"]}
+        for f in filas
+    }
