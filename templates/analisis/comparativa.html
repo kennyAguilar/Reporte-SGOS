@@ -184,7 +184,11 @@
         <h3>👤 Clientes con más cortesías</h3>
         <p class="info-note">ℹ️ Ordenados por monto recibido. El teórico de cada cliente es
           su Coin In × 0,065 y el ratio son sus cortesías sobre ese teórico. "Sin juego"
-          marca a quien recibió cortesías y no registró Coin In en el área.</p>
+          marca a quien recibió cortesías y no registró Coin In en el área. "Monto autorizado"
+          es la cortesía disponible del cliente: Coin In × % Primario × % de su categoría
+          (porcentajes de Configuración → Categorías). "Autorizado − cortesías" es lo que le
+          queda disponible: en rojo y negativo si recibió más de lo autorizado. "Premios" cuenta los
+          Jackpot HP y Progressive Jackpot HP que el cliente cobró en máquinas en el periodo.</p>
         {% if top_clientes %}
             <div class="heatmap-scroll">
               <table class="record-table sortable-table" data-buscador>
@@ -195,8 +199,11 @@
                     <th>Jornadas</th>
                     <th>Coin In</th>
                     <th>Teórico (6,5%)</th>
+                    <th>Monto autorizado</th>
                     <th>Cortesías</th>
                     <th>Monto cortesías</th>
+                    <th>Autorizado − cortesías</th>
+                    <th>Premios</th>
                     <th class="total-col">Cortesías / teórico</th>
                   </tr>
                 </thead>
@@ -208,8 +215,11 @@
                       <td>{{ c.jornadas }}</td>
                       <td>{{ c.coin_in }}</td>
                       <td>{{ c.teorico }}</td>
+                      <td>{{ c.autorizado }}</td>
                       <td>{{ c.cortesias }}</td>
                       <td>{{ c.comps }}</td>
+                      <td class="{{ 'saldo-negativo' if c.excedido else 'saldo-positivo' }}">{{ c.saldo }}</td>
+                      <td>{{ c.premios }}</td>
                       <td class="total-col">{{ c.ratio_teorico }}</td>
                     </tr>
                   {% endfor %}

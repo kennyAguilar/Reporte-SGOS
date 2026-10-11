@@ -429,6 +429,16 @@
   margin-left: 6px;
 }
 
+/* Saldo de cortesías (Análisis): autorizado − entregado */
+.record-table td.saldo-negativo {
+  color: var(--text-error, #ffb3b8);
+  font-weight: 600;
+}
+
+.record-table td.saldo-positivo {
+  color: #42be65;
+}
+
 .record-matrix th,
 .record-matrix td {
   padding: 6px 10px;

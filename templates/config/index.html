@@ -204,9 +204,9 @@
       <h3>Agregar categoría</h3>
       <p class="config-help">
         % de margen teórico por categoría de jugador (DREAMS, GOLD, BLACK,
-        PLATINUM, AUTOEXCLUIDO). <strong>Primario</strong> es el % por defecto
-        para jugadores sin categoría asignada. Tabla de referencia, aún sin
-        uso en los cálculos de Análisis.
+        PLATINUM, AUTOEXCLUIDO). Monto autorizado = Coin In ×
+        <strong>Primario</strong> × % de la categoría del jugador (se usa en
+        Análisis y en Coin In Cero).
       </p>
       <form method="post" action="{{ url_for('config.crear_categoria_margen') }}" class="config-form">
         <div class="field">

@@ -15,8 +15,8 @@ Cubre dos áreas:
    usará para cruzar las operaciones con su jefatura. Se administra a mano.
 
 4. Categorías: % de margen teórico por categoría de jugador (DREAMS, GOLD,
-   BLACK, PLATINUM, AUTOEXCLUIDO, Primario). Tabla de referencia; aún sin uso
-   en los cálculos de Análisis.
+   BLACK, PLATINUM, AUTOEXCLUIDO, Primario). Se usan para calcular el monto
+   de cortesías disponible/autorizado (Coin In Cero y Análisis).
 """
 from werkzeug.security import generate_password_hash
 
@@ -326,6 +326,40 @@ def delete_jefatura(id):
 # ---------------------------------------------------------------------------
 # Categorías (% de margen teórico por categoría de jugador)
 # ---------------------------------------------------------------------------
+# Variantes de categoría que llegan sin el prefijo "DREAMS" desde los Excel.
+_ALIAS_CATEGORIA = {
+    "BLACK": "DREAMS BLACK",
+    "GOLD": "DREAMS GOLD",
+    "PLATINUM": "DREAMS PLATINUM",
+}
+
+
+def normalizar_categoria(categoria):
+    """Homologa variantes de categoría a las claves de categorias_margen."""
+    cat = (categoria or "").strip().upper()
+    return _ALIAS_CATEGORIA.get(cat, cat)
+
+
+def get_porcentajes_margen():
+    """Devuelve (pct_primario, {CATEGORIA_EN_MAYUSCULAS: pct})."""
+    pct = {
+        c["categoria"].strip().upper(): float(c["porcentaje"])
+        for c in list_categorias_margen()
+    }
+    return pct.get("PRIMARIO", 0.0), pct
+
+
+def calcular_monto_autorizado(coin_in, categoria, pct_primario, pct_por_categoria):
+    """Coin In × % Primario × % de la categoría del jugador.
+
+    Categoría sin match en Configuración -> 0 (no se puede calcular).
+    """
+    pct_categoria = pct_por_categoria.get(normalizar_categoria(categoria))
+    if pct_categoria is None:
+        return 0
+    return coin_in * pct_primario / 100 * pct_categoria / 100
+
+
 def list_categorias_margen():
     """Lista todas las categorías con su % de margen, ordenadas por id."""
     conn = get_connection()

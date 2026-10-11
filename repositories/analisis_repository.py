@@ -21,6 +21,7 @@ Llave del cruce jugador: `comps.cliente_id` == `coinin.player_id` ==
 """
 from core.database import get_connection
 from core.formato import fecha_hora, fecha_larga, mes_anio_es, mes_ingles, miles, pesos
+from repositories import config_repository
 
 # Áreas soportadas y su etiqueta para la interfaz.
 AREAS = [("MDA", "MDA · Máquinas"), ("MDJ", "MDJ · Mesas")]
@@ -47,7 +48,7 @@ _ID_VALIDO = "c.cliente_id ~ '^[0-9]+$'"
 def _fuente_juego(area):
     """Devuelve el SELECT con el juego del área, ya normalizado.
 
-    Columnas de salida: jornada, cliente_id, nombre, coin_in, juegos.
+    Columnas de salida: jornada, cliente_id, nombre, categoria, coin_in, juegos.
     MDA y MDJ viven en tablas distintas y NUNCA se combinan.
     """
     if area == "MDJ":
@@ -56,17 +57,19 @@ def _fuente_juego(area):
             SELECT fecha_operacion AS jornada,
                    id_cliente      AS cliente_id,
                    nombre          AS nombre,
+                   categoria       AS categoria,
                    coin_in         AS coin_in,
                    1               AS juegos
             FROM mesas
         """, []
     # MDA: reporte agregado por jugador y jornada.
     return """
-        SELECT jornada     AS jornada,
-               player_id   AS cliente_id,
-               full_name   AS nombre,
-               coin_in     AS coin_in,
-               total_games AS juegos
+        SELECT jornada      AS jornada,
+               player_id    AS cliente_id,
+               full_name    AS nombre,
+               player_level AS categoria,
+               coin_in      AS coin_in,
+               total_games  AS juegos
         FROM coinin
         WHERE sistema = 'MDA'
     """, []
@@ -126,6 +129,7 @@ def _cte(area, anio=None, mes=None, nombre=None):
             SELECT jornada,
                    cliente_id,
                    MAX(nombre)       AS jugador,
+                   MAX(categoria)    AS categoria,
                    SUM(coin_in)      AS coin_in,
                    SUM(juegos)       AS juegos
             FROM ({fuente}) f
@@ -385,13 +389,33 @@ def get_comparativa_por_mes(area, anio=None, mes=None, nombre=None):
     }
 
 
-def get_top_clientes(area, anio=None, mes=None, nombre=None, limit=25):
+def get_top_clientes(area, anio=None, mes=None, nombre=None, limit=None):
     """Clientes del área ordenados por cortesías recibidas.
 
     Cruza lo que cada cliente jugó contra lo que recibió, para ver el ratio
     individual. Un ratio alto = mucha cortesía para poco juego.
+    Sin ``limit`` devuelve la lista completa de clientes.
+
+    También cuenta los premios (Jackpot HP / Progressive Jackpot HP) que el
+    cliente cobró en máquinas en el mismo periodo. Los premios siempre son de
+    máquinas, así que en MDJ muestran los jackpots que ese jugador de mesas
+    ganó en el área de máquinas.
     """
     cte, params = _cte(area, anio, mes, nombre)
+
+    # En `premios` la tarjeta viene envuelta en 'x' (x3017...x).
+    f_premios = ["tipo_de_pago IN ('Jackpot HP', 'Progressive Jackpot HP')"]
+    if anio:
+        f_premios.append("EXTRACT(YEAR FROM jornada) = %s")
+        params = params + [int(anio)]
+    if mes:
+        f_premios.append("EXTRACT(MONTH FROM jornada) = %s")
+        params = params + [int(mes)]
+    where_premios = "WHERE " + " AND ".join(f_premios)
+
+    limite = "LIMIT %s" if limit else ""
+    if limit:
+        params = params + [limit]
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -399,27 +423,41 @@ def get_top_clientes(area, anio=None, mes=None, nombre=None, limit=25):
                 f"""
                 {cte},
                 union_cli AS (
-                    SELECT cliente_id, jugador, 0 AS coin_in, 0 AS juegos,
+                    SELECT cliente_id, jugador, NULL AS categoria,
+                           0 AS coin_in, 0 AS juegos,
                            cortesias, monto, jornada
                     FROM comps_a
                     UNION ALL
-                    SELECT cliente_id, jugador, coin_in, juegos,
+                    SELECT cliente_id, jugador, categoria, coin_in, juegos,
                            0 AS cortesias, 0 AS monto, jornada
                     FROM juego_a
+                ),
+                premios_a AS (
+                    SELECT BTRIM(TRIM(cliente), 'x') AS cliente_id,
+                           COUNT(*)                  AS premios
+                    FROM premios
+                    {where_premios}
+                    GROUP BY 1
+                ),
+                clientes AS (
+                    SELECT cliente_id,
+                           MAX(jugador)            AS jugador,
+                           MAX(categoria)          AS categoria,
+                           SUM(coin_in)            AS coin_in,
+                           SUM(cortesias)          AS cortesias,
+                           SUM(monto)              AS comps,
+                           COUNT(DISTINCT jornada) AS jornadas
+                    FROM union_cli
+                    GROUP BY cliente_id
+                    HAVING SUM(monto) > 0
                 )
-                SELECT cliente_id,
-                       MAX(jugador)            AS jugador,
-                       SUM(coin_in)            AS coin_in,
-                       SUM(cortesias)          AS cortesias,
-                       SUM(monto)              AS comps,
-                       COUNT(DISTINCT jornada) AS jornadas
-                FROM union_cli
-                GROUP BY cliente_id
-                HAVING SUM(monto) > 0
-                ORDER BY SUM(monto) DESC
-                LIMIT %s
+                SELECT c.*, COALESCE(p.premios, 0) AS premios
+                FROM clientes c
+                LEFT JOIN premios_a p ON p.cliente_id = c.cliente_id
+                ORDER BY c.comps DESC
+                {limite}
                 """,
-                params + [limit],
+                params,
             )
             filas = cur.fetchall()
     finally:
@@ -428,22 +466,33 @@ def get_top_clientes(area, anio=None, mes=None, nombre=None, limit=25):
     if not filas:
         return None
 
+    pct_primario, pct_por_categoria = config_repository.get_porcentajes_margen()
+
     salida = []
     for f in filas:
         coin_in = int(f["coin_in"] or 0)
         comps = int(f["comps"] or 0)
         teorico = coin_in * MARGEN_TEORICO
+        autorizado = config_repository.calcular_monto_autorizado(
+            coin_in, f["categoria"], pct_primario, pct_por_categoria
+        )
         ratio = round(comps * 100.0 / coin_in, 1) if coin_in else None
         ratio_teorico = round(comps * 100.0 / teorico, 1) if teorico else None
+        # Positivo = le queda margen; negativo = recibió más de lo autorizado.
+        saldo = round(autorizado) - comps
         salida.append(
             {
                 "cliente_id": f["cliente_id"],
                 "jugador": f["jugador"] or f"Tarjeta {f['cliente_id']}",
                 "coin_in": pesos(coin_in),
                 "teorico": pesos(round(teorico)),
+                "autorizado": pesos(round(autorizado)),
+                "saldo": ("-" if saldo < 0 else "") + pesos(abs(saldo)),
+                "excedido": saldo < 0,
                 "comps": pesos(comps),
                 "cortesias": miles(f["cortesias"]),
                 "jornadas": miles(f["jornadas"]),
+                "premios": miles(f["premios"]),
                 # Sin juego el ratio es infinito: se marca aparte para la vista.
                 "ratio": f"{ratio}%" if ratio is not None else "Sin juego",
                 "ratio_teorico": (

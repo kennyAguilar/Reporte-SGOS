@@ -30,21 +30,8 @@ MESES = [
 _ORDEN_AREAS = ["MDA", "MDJ", "MRK"]
 
 # "Monto disponible" (Coin In × Primario × % Categoría) solo tiene fuente de
-# Coin In real para estas dos áreas (tablas coinin/mesas). Variantes de
-# categoría que llegan sin el prefijo "DREAMS" desde los Excel de origen.
+# Coin In real para estas dos áreas (tablas coinin/mesas).
 _AREAS_CON_COIN_IN = ("MDA", "MDJ")
-_ALIAS_CATEGORIA = {
-    "BLACK": "DREAMS BLACK",
-    "GOLD": "DREAMS GOLD",
-    "PLATINUM": "DREAMS PLATINUM",
-}
-
-
-def _normalizar_categoria(categoria):
-    """Homologa variantes de categoría a las claves de categorias_margen."""
-    cat = (categoria or "").strip().upper()
-    return _ALIAS_CATEGORIA.get(cat, cat)
-
 
 def _safe(func, *args, **kwargs):
     """Ejecuta una consulta degradando a None ante cualquier error.
@@ -175,9 +162,9 @@ def _agregar_monto_disponible(jefes, area, anio, mes):
     en varias jornadas del mismo jefe cuenta una sola vez, porque su Coin In
     y su disponible son del periodo completo, no de un día puntual).
     """
-    categorias = _safe(config_repository.list_categorias_margen) or []
-    pct_por_categoria = {c["categoria"].strip().upper(): float(c["porcentaje"]) for c in categorias}
-    pct_primario = pct_por_categoria.get("PRIMARIO", 0.0)
+    pct_primario, pct_por_categoria = _safe(
+        config_repository.get_porcentajes_margen
+    ) or (0.0, {})
 
     cliente_ids = sorted({cid for jef in jefes for cid in jef["cliente_ids"]})
     coin_in_map = _safe(
@@ -188,10 +175,9 @@ def _agregar_monto_disponible(jefes, area, anio, mes):
     for cid in cliente_ids:
         datos = coin_in_map.get(cid) or {"coin_in": 0, "categoria": None}
         coin_in = datos["coin_in"]
-        categoria_norm = _normalizar_categoria(datos["categoria"])
-        pct_categoria = pct_por_categoria.get(categoria_norm)
-        teorico = coin_in * pct_primario / 100
-        disponible = teorico * pct_categoria / 100 if pct_categoria is not None else 0
+        disponible = config_repository.calcular_monto_autorizado(
+            coin_in, datos["categoria"], pct_primario, pct_por_categoria
+        )
         disponible_por_cliente[cid] = {"coin_in": coin_in, "disponible": disponible}
 
     for jef in jefes:
