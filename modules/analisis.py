@@ -1,8 +1,8 @@
 """Módulo Análisis general — Comps vs Coin In por área de juego.
 
 Dos niveles de navegación:
-  Nivel 1 (área):   MDA (máquinas) | MDJ (mesas). NUNCA se mezclan: cada área
-                    tiene su propia fuente de juego y su propio ratio.
+  Nivel 1 (área):   MDA (máquinas) | MDJ (mesas) | MRK (marketing). MDA y MDJ
+                    nunca se mezclan; MRK usa como Coin In la suma MDA + MDJ.
   Nivel 2 (vista):  Comps vs Coin In | Preferencias de productos.
 
 La cortesía se atribuye al área por la jefatura que la entregó
@@ -57,7 +57,7 @@ def _contexto_filtros():
 
 
 def _tabs(area_actual, seccion, filtros):
-    """Pestañas de área (MDA | MDJ) preservando los filtros activos."""
+    """Pestañas de área (MDA | MDJ | MRK) preservando los filtros activos."""
     args = {}
     if filtros["anio"]:
         args["anio"] = filtros["anio"]

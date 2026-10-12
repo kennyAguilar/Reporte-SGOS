@@ -93,10 +93,14 @@
              (Configuración → Jefaturas). El Coin In sale de la fuente propia del área:
              {% if area == 'MDJ' %}
                mesas de juego (PUNTOS_OBTENIDOS × 1000).
+               MDA y MDJ nunca se suman entre sí.
+             {% elif area == 'MRK' %}
+               Marketing no tiene juego propio, así que su Coin In es la suma de
+               MDA (máquinas) + MDJ (mesas).
              {% else %}
                máquinas, columna Coin In Amount.
-             {% endif %}
-             MDA y MDJ nunca se suman entre sí.</p>
+               MDA y MDJ nunca se suman entre sí.
+             {% endif %}</p>
         </div>
         <div>
           <strong>Ganancia teórica (6,5%)</strong>

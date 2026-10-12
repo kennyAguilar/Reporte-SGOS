@@ -6,11 +6,12 @@ juego real de cada área para responder la pregunta de negocio:
     ¿Cuánto estamos devolviendo en cortesías por cada peso que el cliente
     juega, y en qué se lo gasta?
 
-Las dos áreas NO se mezclan nunca: cada consulta recibe `area` y usa su
-propia fuente de juego.
+Cada consulta recibe `area` y usa su propia fuente de juego. MDA y MDJ no se
+mezclan entre sí; MRK (Marketing) no tiene juego propio y usa la suma de ambas.
 
     MDA (Máquinas)  -> tabla `coinin`, sistema = 'MDA' (Coin In Amount real).
     MDJ (Mesas)     -> tabla `mesas`  (PUNTOS_OBTENIDOS x 1000, seudo Coin In).
+    MRK (Marketing) -> MDA + MDJ (UNION ALL de las dos fuentes anteriores).
 
 La cortesía se atribuye a un área por la JEFATURA que la entregó
 (`comps.usuario_id` -> `jefaturas.area`). Una cortesía sin jefatura conocida
@@ -24,7 +25,7 @@ from core.formato import fecha_hora, fecha_larga, mes_anio_es, mes_ingles, miles
 from repositories import config_repository
 
 # Áreas soportadas y su etiqueta para la interfaz.
-AREAS = [("MDA", "MDA · Máquinas"), ("MDJ", "MDJ · Mesas")]
+AREAS = [("MDA", "MDA · Máquinas"), ("MDJ", "MDJ · Mesas"), ("MRK", "MRK · Marketing")]
 
 # Ventaja teórica de la casa: del total jugado (Coin In) se asume que el casino
 # retiene un 6,5%. Ese "teórico" es la ganancia esperada del periodo y es la
@@ -45,34 +46,42 @@ _COLORES = [
 _ID_VALIDO = "c.cliente_id ~ '^[0-9]+$'"
 
 
+# Mesas: una fila por sesión, coin_in ya es el seudo Coin In (puntos x1000).
+_SQL_JUEGO_MDJ = """
+    SELECT fecha_operacion AS jornada,
+           id_cliente      AS cliente_id,
+           nombre          AS nombre,
+           categoria       AS categoria,
+           coin_in         AS coin_in,
+           1               AS juegos
+    FROM mesas
+"""
+
+# MDA: reporte agregado por jugador y jornada.
+_SQL_JUEGO_MDA = """
+    SELECT jornada      AS jornada,
+           player_id    AS cliente_id,
+           full_name    AS nombre,
+           player_level AS categoria,
+           coin_in      AS coin_in,
+           total_games  AS juegos
+    FROM coinin
+    WHERE sistema = 'MDA'
+"""
+
+
 def _fuente_juego(area):
     """Devuelve el SELECT con el juego del área, ya normalizado.
 
     Columnas de salida: jornada, cliente_id, nombre, categoria, coin_in, juegos.
-    MDA y MDJ viven en tablas distintas y NUNCA se combinan.
+    MDA y MDJ viven en tablas distintas y no se combinan entre sí; solo MRK
+    (Marketing) usa como Coin In la suma de ambas fuentes.
     """
     if area == "MDJ":
-        # Mesas: una fila por sesión, coin_in ya es el seudo Coin In (puntos x1000).
-        return """
-            SELECT fecha_operacion AS jornada,
-                   id_cliente      AS cliente_id,
-                   nombre          AS nombre,
-                   categoria       AS categoria,
-                   coin_in         AS coin_in,
-                   1               AS juegos
-            FROM mesas
-        """, []
-    # MDA: reporte agregado por jugador y jornada.
-    return """
-        SELECT jornada      AS jornada,
-               player_id    AS cliente_id,
-               full_name    AS nombre,
-               player_level AS categoria,
-               coin_in      AS coin_in,
-               total_games  AS juegos
-        FROM coinin
-        WHERE sistema = 'MDA'
-    """, []
+        return _SQL_JUEGO_MDJ, []
+    if area == "MRK":
+        return f"{_SQL_JUEGO_MDA} UNION ALL {_SQL_JUEGO_MDJ}", []
+    return _SQL_JUEGO_MDA, []
 
 
 def _cte(area, anio=None, mes=None, nombre=None):
