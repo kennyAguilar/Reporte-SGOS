@@ -88,6 +88,12 @@
       <h3 class="legend-title">📒 Leyenda de cálculos</h3>
       <div class="legend-grid">
         <div>
+          {% if area == 'TODOS' %}
+          <strong>Qué incluye Todos</strong>
+          <p>Junta a <em>todo el personal</em>: suma las cortesías entregadas por las
+             jefaturas de MDA, MDJ y MRK (Configuración → Jefaturas). Igual que en
+             Marketing, el Coin In es la suma de MDA (máquinas) + MDJ (mesas).</p>
+          {% else %}
           <strong>Cómo se separa el área</strong>
           <p>La cortesía pertenece al área de la <em>jefatura que la entregó</em>
              (Configuración → Jefaturas). El Coin In sale de la fuente propia del área:
@@ -101,6 +107,7 @@
                máquinas, columna Coin In Amount.
                MDA y MDJ nunca se suman entre sí.
              {% endif %}</p>
+          {% endif %}
         </div>
         <div>
           <strong>Ganancia teórica (6,5%)</strong>
@@ -139,7 +146,7 @@
 
     {% if ids_invalidos %}
       <section class="info-note info-note--warn">
-        ⚠️ {{ ids_invalidos.cortesias }} cortesías de {{ area }} ({{ ids_invalidos.monto }}) tienen un
+        ⚠️ {{ ids_invalidos.cortesias }} cortesías de {{ area_nombre }} ({{ ids_invalidos.monto }}) tienen un
         número de tarjeta guardado en notación científica y quedan fuera de este análisis.
         Vuelve a cargar ese Excel de Comps para repararlas.
       </section>
@@ -149,14 +156,14 @@
       <section class="info-note info-note--warn">
         ⚠️ Hay cortesías sin Coin In cargado en: <strong>{{ comparativa.meses_sin_juego|join(', ') }}</strong>.
         El ratio de esos meses aparece en 0% porque falta el archivo de juego, no porque
-        no hubiera costo. Mientras falte, el ratio acumulado de {{ area }} queda
+        no hubiera costo. Mientras falte, el ratio acumulado de {{ area_nombre }} queda
         sobreestimado.
       </section>
     {% endif %}
 
     {% if not resumen %}
       <div class="empty-state">
-        No hay datos de {{ area }} para este filtro. Revisa que las jefaturas del área
+        No hay datos de {{ area_nombre }} para este filtro. Revisa que las jefaturas del área
         estén configuradas y que estén cargados los Excel de Comps y Coin In.
       </div>
     {% else %}

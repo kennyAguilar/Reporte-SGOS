@@ -1,8 +1,10 @@
 """Módulo Análisis general — Comps vs Coin In por área de juego.
 
 Dos niveles de navegación:
-  Nivel 1 (área):   MDA (máquinas) | MDJ (mesas) | MRK (marketing). MDA y MDJ
-                    nunca se mezclan; MRK usa como Coin In la suma MDA + MDJ.
+  Nivel 1 (área):   MDA (máquinas) | MDJ (mesas) | MRK (marketing) | Todos.
+                    MDA y MDJ nunca se mezclan; MRK usa como Coin In la suma
+                    MDA + MDJ, y Todos junta las cortesías de todo el personal
+                    (MDA + MDJ + MRK) contra ese mismo Coin In.
   Nivel 2 (vista):  Comps vs Coin In | Preferencias de productos.
 
 La cortesía se atribuye al área por la jefatura que la entregó
@@ -57,7 +59,7 @@ def _contexto_filtros():
 
 
 def _tabs(area_actual, seccion, filtros):
-    """Pestañas de área (MDA | MDJ | MRK) preservando los filtros activos."""
+    """Pestañas de área (MDA | MDJ | MRK | Todos) preservando los filtros activos."""
     args = {}
     if filtros["anio"]:
         args["anio"] = filtros["anio"]
@@ -85,6 +87,11 @@ def _resolver_area(area):
     return clave if clave in validas else validas[0]
 
 
+def _nombre_area(clave):
+    """Nombre del área para los textos de la vista (Todos -> MDA + MDJ + MRK)."""
+    return " + ".join(analisis_repository.areas_jefatura(clave))
+
+
 @analisis_bp.route("/")
 @login_required
 def index():
@@ -102,6 +109,7 @@ def comparativa(area):
         user=current_user(),
         active="analisis",
         area=clave,
+        area_nombre=_nombre_area(clave),
         seccion="comparativa",
         tabs=_tabs(clave, "comparativa", filtros),
         resumen=_safe(analisis_repository.get_resumen, clave, anio, mes, nombre),
@@ -133,6 +141,7 @@ def productos(area):
         user=current_user(),
         active="analisis",
         area=clave,
+        area_nombre=_nombre_area(clave),
         seccion="productos",
         tabs=_tabs(clave, "productos", filtros),
         resumen=_safe(analisis_repository.get_resumen, clave, anio, mes, nombre),

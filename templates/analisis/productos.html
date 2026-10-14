@@ -27,13 +27,13 @@
 
     <section class="info-note">
       ℹ️ Qué consume cada cliente con las cortesías que le entregan las jefaturas de
-      {{ area }}. Pulsa una fila para ver el detalle de sus productos. El
+      {{ area_nombre }}. Pulsa una fila para ver el detalle de sus productos. El
       <strong>favorito</strong> es el producto en el que concentra más gasto.
     </section>
 
     {% if not preferencias %}
       <div class="empty-state">
-        No hay cortesías de {{ area }} para este filtro. Revisa que las jefaturas del
+        No hay cortesías de {{ area_nombre }} para este filtro. Revisa que las jefaturas del
         área estén configuradas y que el Excel de Comps esté cargado.
       </div>
     {% else %}

@@ -8,14 +8,18 @@ juego real de cada área para responder la pregunta de negocio:
 
 Cada consulta recibe `area` y usa su propia fuente de juego. MDA y MDJ no se
 mezclan entre sí; MRK (Marketing) no tiene juego propio y usa la suma de ambas.
+TODOS junta a todo el personal: las cortesías de MDA + MDJ + MRK contra el
+mismo Coin In de MRK.
 
     MDA (Máquinas)  -> tabla `coinin`, sistema = 'MDA' (Coin In Amount real).
     MDJ (Mesas)     -> tabla `mesas`  (PUNTOS_OBTENIDOS x 1000, seudo Coin In).
     MRK (Marketing) -> MDA + MDJ (UNION ALL de las dos fuentes anteriores).
+    TODOS           -> MDA + MDJ, igual que MRK.
 
 La cortesía se atribuye a un área por la JEFATURA que la entregó
 (`comps.usuario_id` -> `jefaturas.area`). Una cortesía sin jefatura conocida
-no pertenece a ninguna área y queda fuera del análisis.
+no pertenece a ninguna área y queda fuera del análisis. TODOS suma las
+cortesías de las jefaturas de MDA, MDJ y MRK.
 
 Llave del cruce jugador: `comps.cliente_id` == `coinin.player_id` ==
 `mesas.id_cliente` (número de tarjeta).
@@ -25,7 +29,15 @@ from core.formato import fecha_hora, fecha_larga, mes_anio_es, mes_ingles, miles
 from repositories import config_repository
 
 # Áreas soportadas y su etiqueta para la interfaz.
-AREAS = [("MDA", "MDA · Máquinas"), ("MDJ", "MDJ · Mesas"), ("MRK", "MRK · Marketing")]
+AREAS = [
+    ("MDA", "MDA · Máquinas"),
+    ("MDJ", "MDJ · Mesas"),
+    ("MRK", "MRK · Marketing"),
+    ("TODOS", "Todos · MDA + MDJ + MRK"),
+]
+
+# Jefaturas que forman TODOS: todo el personal en un solo análisis.
+_JEFATURAS_TODOS = ("MDA", "MDJ", "MRK")
 
 # Ventaja teórica de la casa: del total jugado (Coin In) se asume que el casino
 # retiene un 6,5%. Ese "teórico" es la ganancia esperada del periodo y es la
@@ -70,16 +82,28 @@ _SQL_JUEGO_MDA = """
 """
 
 
+def areas_jefatura(area):
+    """Áreas de jefatura cuyas cortesías se atribuyen a `area`."""
+    return _JEFATURAS_TODOS if area == "TODOS" else (area,)
+
+
+def _filtro_area(area):
+    """Condición SQL (y sus params) que deja solo las cortesías del área."""
+    areas = list(areas_jefatura(area))
+    marcas = ", ".join(["%s"] * len(areas))
+    return f"TRIM(j.area) IN ({marcas})", areas
+
+
 def _fuente_juego(area):
     """Devuelve el SELECT con el juego del área, ya normalizado.
 
     Columnas de salida: jornada, cliente_id, nombre, categoria, coin_in, juegos.
     MDA y MDJ viven en tablas distintas y no se combinan entre sí; solo MRK
-    (Marketing) usa como Coin In la suma de ambas fuentes.
+    (Marketing) y TODOS usan como Coin In la suma de ambas fuentes.
     """
     if area == "MDJ":
         return _SQL_JUEGO_MDJ, []
-    if area == "MRK":
+    if area in ("MRK", "TODOS"):
         return f"{_SQL_JUEGO_MDA} UNION ALL {_SQL_JUEGO_MDJ}", []
     return _SQL_JUEGO_MDA, []
 
@@ -98,7 +122,8 @@ def _cte(area, anio=None, mes=None, nombre=None):
     """
     fuente, p_fuente = _fuente_juego(area)
 
-    f_comps, p_comps = ["TRIM(j.area) = %s", _ID_VALIDO], [area]
+    f_area, p_comps = _filtro_area(area)
+    f_comps = [f_area, _ID_VALIDO]
     f_juego, p_juego = [], []
 
     if anio:
@@ -170,7 +195,8 @@ def get_ids_invalidos(area, anio=None, mes=None, nombre=None):
     Devuelve None si no hay ninguna (el aviso de la vista solo se muestra
     cuando el problema realmente existe para el filtro actual).
     """
-    filtros, params = ["TRIM(j.area) = %s", f"NOT ({_ID_VALIDO})"], [area]
+    f_area, params = _filtro_area(area)
+    filtros = [f_area, f"NOT ({_ID_VALIDO})"]
     if anio:
         filtros.append("EXTRACT(YEAR FROM c.fecha_jornada) = %s")
         params.append(int(anio))
@@ -526,7 +552,8 @@ def get_top_productos(area, anio=None, mes=None, nombre=None, limit=12):
 
 def _productos_area(area, anio, mes, nombre, limit=None):
     """Consulta cruda de productos entregados en el área (uso interno)."""
-    filtros, params = ["TRIM(j.area) = %s", _ID_VALIDO], [area]
+    f_area, params = _filtro_area(area)
+    filtros = [f_area, _ID_VALIDO]
     if anio:
         filtros.append("EXTRACT(YEAR FROM c.fecha_jornada) = %s")
         params.append(int(anio))
@@ -568,7 +595,8 @@ def _productos_area(area, anio, mes, nombre, limit=None):
 
 def get_categorias(area, anio=None, mes=None, nombre=None):
     """Distribución del gasto en cortesías por categoría de producto (donut)."""
-    filtros, params = ["TRIM(j.area) = %s", _ID_VALIDO], [area]
+    f_area, params = _filtro_area(area)
+    filtros = [f_area, _ID_VALIDO]
     if anio:
         filtros.append("EXTRACT(YEAR FROM c.fecha_jornada) = %s")
         params.append(int(anio))
@@ -625,7 +653,8 @@ def get_preferencias(area, anio=None, mes=None, nombre=None, limit=60):
     Devuelve [{cliente_id, jugador, cortesias, monto, favorito,
                productos: [{producto, categoria, cantidad, monto, pct}]}]
     """
-    filtros, params = ["TRIM(j.area) = %s", _ID_VALIDO], [area]
+    f_area, params = _filtro_area(area)
+    filtros = [f_area, _ID_VALIDO]
     if anio:
         filtros.append("EXTRACT(YEAR FROM c.fecha_jornada) = %s")
         params.append(int(anio))

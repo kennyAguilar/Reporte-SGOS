@@ -1,7 +1,7 @@
 {# Submenú de dos niveles del módulo Análisis general.
-   Nivel 1: área (MDA / MDJ / MRK), en `tabs` (label/url/activo).
+   Nivel 1: área (MDA / MDJ / MRK / Todos), en `tabs` (label/url/activo).
    Nivel 2: vista (Comps vs Coin In / Preferencias de productos).
-   Variables esperadas: tabs, area ("MDA"/"MDJ"/"MRK"), seccion. #}
+   Variables esperadas: tabs, area ("MDA"/"MDJ"/"MRK"/"TODOS"), seccion. #}
 <nav class="submenu">
   {% for t in tabs %}
     <a href="{{ t.url }}" class="{{ 'active' if t.activo else '' }}">{{ t.label }}</a>
