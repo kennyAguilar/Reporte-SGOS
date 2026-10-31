@@ -20,12 +20,13 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 ├── config.py                   # Configuración (SECRET_KEY, DATABASE_URL, etc.)
 ├── core/
 │   ├── auth.py                 # login_required, current_user()
+│   ├── csrf.py                 # Protección CSRF (token en sesión + before_request)
 │   ├── database.py             # get_connection() → Neon PostgreSQL
 │   ├── formato.py              # Helpers de formato (pesos, fechas)
 │   └── sgos_parse.py           # Limpieza y normalización de Excel
 ├── modules/
-│   ├── auth.py                 # Blueprint: /login, /logout
-│   ├── home.py                 # Blueprint: / (resumen general)
+│   ├── auth.py                 # Blueprint: /login, /logout, /mi-contrasena
+│   ├── home.py                 # Blueprint: / (panel de control: alertas, último mes por módulo, estado de carga)
 │   ├── getnet.py               # Blueprint: /getnet (dashboard, histórico, record, rendimiento)
 │   ├── premios.py              # Blueprint: /premios (dashboard, histórico, record, rendimiento)
 │   ├── asistentes.py           # Blueprint: /asistentes (rendimiento combinado Getnet + Premios)
@@ -36,6 +37,7 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 │   ├── getnet_repository.py
 │   ├── premios_repository.py
 │   ├── asistentes_repository.py
+│   ├── home_repository.py
 │   ├── comps_repository.py
 │   ├── upload_repository.py
 │   └── config_repository.py
@@ -147,13 +149,14 @@ La aplicación usa Neon.tech (PostgreSQL serverless). La tabla principal de usua
 | Módulo | Estado |
 |---|---|
 | Login / Sesión | ✅ Implementado |
-| Home / Resumen KPIs | ✅ Implementado |
+| Home / Resumen — panel de control (alertas de rezago, último mes por módulo con Δ, tendencia, estado de carga) | ✅ Implementado |
 | Getnet — Carga de Excel | ✅ Implementado |
 | Getnet — Dashboard (KPIs con Δ mensual + gráficos + mapa de calor + donut formas de pago) | ✅ Implementado |
 | Getnet — Histórico (resumen mensual con Δ, operaciones por hora) | ✅ Implementado |
 | Getnet — Record Asistentes (podio, resumen operativo, transacciones, total acumulado) | ✅ Implementado |
 | Getnet — Rendimiento (evaluación por asistente: prom./jornada, índice vs equipo, tendencia) | ✅ Implementado |
-| Configuración (gestión de asistentes y usuarios — solo admin) | ✅ Implementado |
+| Configuración (slots, usuarios con roles/estado, jefaturas, categorías — solo admin) | ✅ Implementado |
+| Mi contraseña (cualquier usuario) + protección CSRF en todos los formularios | ✅ Implementado |
 | Premios — Carga de Excel | ✅ Implementado |
 | Premios — Dashboard (KPIs con Δ mensual + 5 gráficos + filtro por tipo de pago HP) | ✅ Implementado |
 | Premios — Histórico (resumen mensual con Δ y ticket, operaciones por hora, conteo anual) | ✅ Implementado |

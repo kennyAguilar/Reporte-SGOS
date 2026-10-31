@@ -639,4 +639,52 @@
       }
     });
   }
+
+  // ===================================================================
+  // Resumen (Home): tendencia Getnet + Premios en barras apiladas.
+  // Datos embebidos en <script id="home-data">: {labels, getnet, premios}.
+  // ===================================================================
+  const homeEl = document.getElementById("home-data");
+  if (homeEl) {
+    let home = null;
+    try {
+      home = JSON.parse(homeEl.textContent);
+    } catch (e) {
+      home = null;
+    }
+    const el = document.getElementById("chart-home-tendencia");
+    if (home && el) {
+      const previo = Chart.getChart(el);
+      if (previo) previo.destroy();
+      new Chart(el, {
+        type: "bar",
+        data: {
+          labels: home.labels,
+          datasets: [
+            { label: "Getnet", data: home.getnet, backgroundColor: ORO, borderRadius: 2, maxBarThickness: 40 },
+            { label: "Premios", data: home.premios, backgroundColor: AZUL, borderRadius: 2, maxBarThickness: 40 },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: TEXTO, boxWidth: 12 } },
+            tooltip: {
+              callbacks: {
+                footer: (items) => {
+                  const total = items.reduce((acc, it) => acc + it.parsed.y, 0);
+                  return "Total: " + total.toLocaleString("es-CL");
+                },
+              },
+            },
+          },
+          scales: {
+            x: { stacked: true, ticks: { color: TEXTO }, grid: { color: GRID } },
+            y: { stacked: true, ticks: { color: TEXTO }, grid: { color: GRID }, beginAtZero: true },
+          },
+        },
+      });
+    }
+  }
 })();

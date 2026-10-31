@@ -517,6 +517,244 @@
   color: #c6c6c6;
 }
 
+/* --- Resumen (Home): alertas, tarjetas por módulo y semáforo --- */
+.home-alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.home-alerta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  border: 1px solid #393939;
+  background: #262626;
+  font-size: 13px;
+  color: #f4f4f4;
+}
+
+.home-alerta--bad { border-color: #6f2a2f; background: #2d1b1d; }
+.home-alerta--warn { border-color: #6b4d1f; background: #2b2316; }
+.home-alerta--ok { border-color: #1f4a2c; background: #16261b; }
+.home-alerta--info { border-color: #2d4450; background: #1c2a33; }
+
+.home-alerta-texto {
+  flex: 1;
+}
+
+.home-alerta-accion {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.home-panel {
+  margin-bottom: 20px;
+}
+
+.home-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.home-panel-head h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #f4f4f4;
+}
+
+.home-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  color: #8d8d8d;
+}
+
+.home-total-valor {
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-size: 20px;
+  font-weight: 600;
+  color: #d4af37;
+  font-feature-settings: "tnum";
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.home-card {
+  background: #262626;
+  border: 1px solid #393939;
+  border-left: 3px solid #525252;
+  border-radius: 4px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.home-card--ok { border-left-color: #42be65; }
+.home-card--warn { border-left-color: #f1c21b; }
+.home-card--bad { border-left-color: #fa4d56; }
+
+.home-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-card-titulo {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #c6c6c6;
+  text-decoration: none;
+}
+
+.home-card-titulo:hover {
+  color: #d4af37;
+}
+
+.home-estado {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  background: #393939;
+  color: #c6c6c6;
+}
+
+.home-estado--ok { background: #1f4a2c; color: #6fdc8c; }
+.home-estado--warn { background: #4a3a14; color: #f1c21b; }
+.home-estado--bad { background: #4a1f23; color: #ff8389; }
+
+.home-card-mes {
+  font-size: 12px;
+  color: #8d8d8d;
+  margin-top: 4px;
+}
+
+.home-card-valor {
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-size: 26px;
+  font-weight: 500;
+  color: #f4f4f4;
+  line-height: 1.1;
+  font-feature-settings: "tnum";
+}
+
+.home-card-valor small {
+  font-family: inherit;
+  font-size: 12px;
+  color: #8d8d8d;
+  font-weight: 400;
+}
+
+.home-card-valor.muted {
+  color: #8d8d8d;
+  font-size: 18px;
+}
+
+.home-card-delta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.home-card-delta em,
+.home-card-foot,
+.home-card-sub {
+  font-style: normal;
+  font-size: 12px;
+  color: #8d8d8d;
+}
+
+.home-card-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.home-card-sub strong {
+  color: #c6c6c6;
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-feature-settings: "tnum";
+  font-weight: 500;
+}
+
+.home-card-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #333;
+}
+
+.home-card-foot strong {
+  color: #c6c6c6;
+  font-weight: 500;
+}
+
+.home-card-foot a {
+  color: #d4af37;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.tag-parcial {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #4a3a14;
+  color: #f1c21b;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.home-card-delta.is-parcial .kpi-delta {
+  opacity: 0.55;
+}
+
+.kpi-delta.small {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Variante fuera de una kpi-card (Home) */
+.home-card .kpi-delta,
+.home-total .kpi-delta {
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.record-table td a {
+  color: #f4f4f4;
+  text-decoration: none;
+}
+
+.record-table td a:hover {
+  color: #d4af37;
+}
+
 .chart-box--tall {
   height: 340px;
 }

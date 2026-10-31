@@ -42,6 +42,7 @@
 
   <section class="login-panel">
     <form class="login-form" method="post" action="{{ url_for('auth.login') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <h2>Iniciar sesión</h2>
       <p class="form-helper">Accede con tu cuenta autorizada</p>
 

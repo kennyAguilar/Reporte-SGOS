@@ -1,18 +1,19 @@
 """Consultas SQL del apartado de Configuración.
 
-Cubre dos áreas:
+Cubre cuatro áreas:
 
-1. Slots activos: estado activo/inactivo de cada slot attendant de Getnet.
+1. Slots activos: estado activo/inactivo de cada slot attendant.
    - La tabla `slot_attendants` guarda SOLO el estado (nombre + activo).
-   - Los nombres salen de DISTINCT getnet.slot_attendant.
+   - Los nombres salen de DISTINCT slot_attendant de `getnet` ∪ `premios`.
    - Un attendant que no está en la tabla se considera ACTIVO por defecto.
-   - El módulo Getnet excluye de sus estadísticas SOLO los marcados como
-     inactivos (ver getnet_repository._inactivos_sql()).
+   - Getnet, Premios y Asistentes excluyen de sus estadísticas SOLO los
+     marcados como inactivos (constante `_FILTRO_ACTIVOS` en cada repositorio).
 
-2. Gestión de usuarios: listar, crear y restablecer contraseñas.
+2. Gestión de usuarios: listar, crear, activar/desactivar, cambiar rol,
+   eliminar y restablecer contraseñas. `users.activo = false` bloquea el login.
 
 3. Jefaturas: datos maestros (usuario_id, nombre, area) que el módulo COMPS
-   usará para cruzar las operaciones con su jefatura. Se administra a mano.
+   usa para cruzar las operaciones con su jefatura. Se administra a mano.
 
 4. Categorías: % de margen teórico por categoría de jugador (DREAMS, GOLD,
    BLACK, PLATINUM, AUTOEXCLUIDO, Primario). Se usan para calcular el monto
@@ -21,7 +22,12 @@ Cubre dos áreas:
 from werkzeug.security import generate_password_hash
 
 from core.database import get_connection
+from core.formato import fecha_corta
 from psycopg2.extras import execute_values
+
+# La categoría "Primario" es el factor base de todos los montos autorizados:
+# si se elimina, Coin In Cero y Análisis pasan a mostrar $0. No se puede borrar.
+CATEGORIA_PROTEGIDA = "PRIMARIO"
 
 
 def ensure_schema():
@@ -37,6 +43,10 @@ def ensure_schema():
                     updated_at timestamptz NOT NULL DEFAULT now()
                 )
                 """
+            )
+            # Usuarios desactivados no pueden iniciar sesión (ver modules/auth.py).
+            cur.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS activo boolean NOT NULL DEFAULT true"
             )
             cur.execute(
                 """
@@ -81,28 +91,37 @@ def ensure_schema():
 # ---------------------------------------------------------------------------
 # Slots activos
 # ---------------------------------------------------------------------------
-def list_slot_attendants():
-    """Lista todos los slot attendants (Getnet ∪ Premios) con su estado y nº de operaciones.
+def _tabla_existe(cur, tabla):
+    cur.execute("SELECT to_regclass(%s) IS NOT NULL AS existe", (f"public.{tabla}",))
+    return bool((cur.fetchone() or {}).get("existe"))
 
-    Devuelve una lista de dicts: {nombre, activo, operaciones}, ordenada por
-    nombre. `operaciones` suma ambas tablas. Un attendant sin registro en
-    slot_attendants se reporta como activo. Si la tabla `premios` aún no
-    existe, se usa solo Getnet.
+
+def list_slot_attendants():
+    """Lista todos los slot attendants (Getnet ∪ Premios) con estado y actividad.
+
+    Devuelve una lista de dicts ordenada por nombre:
+        {nombre, activo, getnet, premios, operaciones, ultima (date|None),
+         ultima_fmt ("dd/mm/aaaa" o "—")}
+    `operaciones` suma ambas tablas y `ultima` es la jornada más reciente en
+    cualquiera de las dos. Un attendant sin registro en slot_attendants se
+    reporta como activo. Si `premios` aún no existe, se usa solo Getnet.
     """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT to_regclass('public.premios') IS NOT NULL AS existe")
-            hay_premios = bool((cur.fetchone() or {}).get("existe"))
-            fuentes = "SELECT slot_attendant FROM getnet"
-            if hay_premios:
-                fuentes += " UNION ALL SELECT slot_attendant FROM premios"
+            fuentes = ["SELECT slot_attendant, jornada, 'getnet' AS origen FROM getnet"]
+            if _tabla_existe(cur, "premios"):
+                fuentes.append("SELECT slot_attendant, jornada, 'premios' AS origen FROM premios")
+            union = " UNION ALL ".join(fuentes)
             cur.execute(
                 f"""
-                SELECT u.slot_attendant                     AS nombre,
-                       COALESCE(sa.activo, true)            AS activo,
-                       COUNT(*)                              AS operaciones
-                FROM ({fuentes}) u
+                SELECT u.slot_attendant                                     AS nombre,
+                       COALESCE(sa.activo, true)                            AS activo,
+                       SUM(CASE WHEN u.origen = 'getnet'  THEN 1 ELSE 0 END) AS getnet,
+                       SUM(CASE WHEN u.origen = 'premios' THEN 1 ELSE 0 END) AS premios,
+                       COUNT(*)                                              AS operaciones,
+                       MAX(u.jornada)                                        AS ultima
+                FROM ({union}) u
                 LEFT JOIN slot_attendants sa
                        ON sa.nombre = u.slot_attendant
                 WHERE u.slot_attendant IS NOT NULL
@@ -111,7 +130,15 @@ def list_slot_attendants():
                 ORDER BY u.slot_attendant
                 """
             )
-            return [dict(r) for r in cur.fetchall()]
+            filas = []
+            for r in cur.fetchall():
+                d = dict(r)
+                d["getnet"] = int(d["getnet"] or 0)
+                d["premios"] = int(d["premios"] or 0)
+                d["operaciones"] = int(d["operaciones"] or 0)
+                d["ultima_fmt"] = fecha_corta(d["ultima"]) if d["ultima"] else "—"
+                filas.append(d)
+            return filas
     finally:
         conn.close()
 
@@ -145,12 +172,45 @@ def list_users():
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, username, is_admin, created_at, last_login_at
+                SELECT id, username, is_admin, activo, created_at, last_login_at
                 FROM users
                 ORDER BY username
                 """
             )
             return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_user(user_id):
+    """Devuelve {id, username, is_admin, activo} o None."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, username, is_admin, activo FROM users WHERE id = %s",
+                (user_id,),
+            )
+            r = cur.fetchone()
+            return dict(r) if r else None
+    finally:
+        conn.close()
+
+
+def count_admins_activos(excluir_id=None):
+    """Cantidad de administradores activos, opcionalmente sin contar a uno."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT COUNT(*) AS n FROM users
+                WHERE is_admin = true AND activo = true
+                  AND (%s IS NULL OR id <> %s)
+                """,
+                (excluir_id, excluir_id),
+            )
+            return int((cur.fetchone() or {}).get("n") or 0)
     finally:
         conn.close()
 
@@ -177,8 +237,43 @@ def create_user(username, password, is_admin=False):
         conn.close()
 
 
+def set_user_activo(user_id, activo):
+    """Activa o desactiva un usuario. Devuelve True si existía."""
+    return _update_user(user_id, "activo = %s", (bool(activo),))
+
+
+def set_user_admin(user_id, is_admin):
+    """Cambia el rol de un usuario. Devuelve True si existía."""
+    return _update_user(user_id, "is_admin = %s", (bool(is_admin),))
+
+
+def _update_user(user_id, set_sql, valores):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"UPDATE users SET {set_sql} WHERE id = %s", (*valores, user_id))
+            actualizado = cur.rowcount > 0
+        conn.commit()
+        return actualizado
+    finally:
+        conn.close()
+
+
+def delete_user(user_id):
+    """Elimina un usuario. Devuelve True si existía."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            eliminado = cur.rowcount > 0
+        conn.commit()
+        return eliminado
+    finally:
+        conn.close()
+
+
 def reset_password(username, password):
-    """Cambia la contraseña de un usuario. Devuelve True si existía."""
+    """Cambia la contraseña de un usuario por username. Devuelve True si existía."""
     password_hash = generate_password_hash(password)
     conn = get_connection()
     try:
@@ -194,21 +289,43 @@ def reset_password(username, password):
         conn.close()
 
 
+def reset_password_by_id(user_id, password):
+    """Cambia la contraseña de un usuario por id. Devuelve True si existía."""
+    return _update_user(user_id, "password_hash = %s", (generate_password_hash(password),))
+
+
 # ---------------------------------------------------------------------------
 # Jefaturas (datos maestros para COMPS)
 # ---------------------------------------------------------------------------
 def list_jefaturas():
-    """Lista todas las jefaturas ordenadas por área y nombre."""
+    """Lista todas las jefaturas ordenadas por área y nombre.
+
+    Incluye `cortesias`: cantidad de registros de COMPS asociados por
+    usuario_id (0 si la tabla `comps` aún no existe). Sirve para saber si una
+    jefatura está en uso antes de eliminarla.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, usuario_id, nombre, area
-                FROM jefaturas
-                ORDER BY area NULLS LAST, nombre
-                """
-            )
+            if _tabla_existe(cur, "comps"):
+                cur.execute(
+                    """
+                    SELECT j.id, j.usuario_id, j.nombre, j.area,
+                           COUNT(c.id) AS cortesias
+                    FROM jefaturas j
+                    LEFT JOIN comps c ON c.usuario_id = j.usuario_id
+                    GROUP BY j.id, j.usuario_id, j.nombre, j.area
+                    ORDER BY j.area NULLS LAST, j.nombre
+                    """
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT id, usuario_id, nombre, area, 0 AS cortesias
+                    FROM jefaturas
+                    ORDER BY area NULLS LAST, nombre
+                    """
+                )
             return [dict(r) for r in cur.fetchall()]
     finally:
         conn.close()
@@ -368,7 +485,11 @@ def calcular_monto_autorizado(coin_in, categoria, pct_primario, pct_por_categori
 
 
 def list_categorias_margen():
-    """Lista todas las categorías con su % de margen, ordenadas por id."""
+    """Lista todas las categorías con su % de margen, ordenadas por id.
+
+    Cada fila trae `porcentaje` (Decimal), `porcentaje_fmt` ("6,5") y
+    `protegida` (True para Primario, que no se puede eliminar).
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -379,7 +500,14 @@ def list_categorias_margen():
                 ORDER BY id
                 """
             )
-            return [dict(r) for r in cur.fetchall()]
+            filas = []
+            for r in cur.fetchall():
+                d = dict(r)
+                pct = float(d["porcentaje"] or 0)
+                d["porcentaje_fmt"] = (f"{pct:.2f}".rstrip("0").rstrip(".") or "0").replace(".", ",")
+                d["protegida"] = d["categoria"].strip().upper() == CATEGORIA_PROTEGIDA
+                filas.append(d)
+            return filas
     finally:
         conn.close()
 
@@ -426,10 +554,17 @@ def update_categoria_margen(id, categoria, porcentaje):
 
 
 def delete_categoria_margen(id):
-    """Elimina una categoría por id. Devuelve True si existía."""
+    """Elimina una categoría por id. Devuelve True si existía.
+
+    La categoría Primario está protegida: lanza ValueError en vez de borrarla.
+    """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT categoria FROM categorias_margen WHERE id = %s", (id,))
+            fila = cur.fetchone()
+            if fila and fila["categoria"].strip().upper() == CATEGORIA_PROTEGIDA:
+                raise ValueError("La categoría Primario no se puede eliminar.")
             cur.execute("DELETE FROM categorias_margen WHERE id = %s", (id,))
             eliminado = cur.rowcount > 0
         conn.commit()

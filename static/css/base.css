@@ -46,6 +46,12 @@
   background: var(--layer-02);
   color: var(--text-secondary);
   font-size: 13px;
+  text-decoration: none;
+}
+
+.app-header a.user-chip:hover {
+  color: var(--text-primary);
+  background: var(--layer-03);
 }
 
 .app-header .user-chip svg,

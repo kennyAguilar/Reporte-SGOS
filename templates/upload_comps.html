@@ -17,6 +17,7 @@
       identificador único, evita duplicados y completa la tabla de jefaturas.</p>
 
     <form method="post" action="{{ url_for('upload.upload_comps') }}" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="upload-field">
         <label for="archivo">Archivo Excel (.xlsx)</label>
         <input type="file" name="archivo" id="archivo" accept=".xlsx,.xls" required>

@@ -18,7 +18,7 @@
     <h2>Configuración</h2>
   </div>
 
-  {# Pestañas de las tres secciones #}
+  {# Pestañas #}
   <nav class="submenu">
     <a href="{{ url_for('config.index', seccion='slots') }}"
        class="{{ 'active' if seccion == 'slots' else '' }}">Slots activos</a>
@@ -28,9 +28,14 @@
        class="{{ 'active' if seccion == 'jefaturas' else '' }}">Jefaturas</a>
     <a href="{{ url_for('config.index', seccion='categorias') }}"
        class="{{ 'active' if seccion == 'categorias' else '' }}">Categorías (margen)</a>
-    <a href="{{ url_for('config.index', seccion='password') }}"
-       class="{{ 'active' if seccion == 'password' else '' }}">Cambiar contraseña</a>
   </nav>
+
+  {% if error_bd %}
+    <div class="config-alert config-alert--error" role="alert">
+      ⚠️ No se pudo leer parte de la configuración desde la base de datos. Lo que
+      ves puede estar incompleto; recarga la página o revisa la conexión.
+    </div>
+  {% endif %}
 
   {# --- Sección: Slots activos --- #}
   {% if seccion == 'slots' %}
@@ -38,31 +43,48 @@
       <h3>Slots activos</h3>
       <p class="config-help">
         Los slot attendants <strong>desactivados</strong> dejan de contar en todas
-        las estadísticas de Getnet (KPIs, gráficos y mapa de calor). Útil cuando una
-        persona ya no tiene contrato. Por defecto todos están activos.
+        las estadísticas de <strong>Getnet</strong>, <strong>Premios</strong> y
+        <strong>Asistentes</strong> (KPIs, gráficos, rankings y rendimiento). Útil
+        cuando una persona ya no tiene contrato. Por defecto todos están activos.
+        <em>Última operación</em> ayuda a decidir: si lleva meses sin operar,
+        probablemente corresponde desactivarlo.
       </p>
 
       {% if slots %}
-        <table class="config-table">
+        <div class="config-toolbar">
+          <input type="search" class="config-search" data-buscar="#tabla-slots"
+                 placeholder="Buscar asistente…" aria-label="Buscar asistente">
+          <span class="config-count" data-contador="#tabla-slots">
+            {{ slots|length }} asistentes · {{ slots_activos }} activos · {{ slots|length - slots_activos }} inactivos
+          </span>
+        </div>
+        <table class="config-table" id="tabla-slots">
           <thead>
             <tr>
               <th>Slot attendant</th>
-              <th class="num">Operaciones</th>
+              <th class="num">Getnet</th>
+              <th class="num">Premios</th>
+              <th class="num">Total</th>
+              <th>Última operación</th>
               <th class="estado">Estado</th>
             </tr>
           </thead>
           <tbody>
             {% for s in slots %}
-              <tr class="{{ '' if s.activo else 'is-inactive' }}">
+              <tr class="{{ '' if s.activo else 'is-inactive' }}" data-estado="{{ 'activo' if s.activo else 'inactivo' }}">
                 <td>{{ s.nombre }}</td>
-                <td class="num">{{ s.operaciones }}</td>
+                <td class="num">{{ s.getnet }}</td>
+                <td class="num">{{ s.premios }}</td>
+                <td class="num"><strong>{{ s.operaciones }}</strong></td>
+                <td class="muted">{{ s.ultima_fmt }}</td>
                 <td class="estado">
-                  <form method="post" action="{{ url_for('config.toggle_slot') }}">
+                  <form method="post" action="{{ url_for('config.toggle_slot') }}"
+                        data-confirmar-off="¿Desactivar a «{{ s.nombre }}»? Dejará de contar en Getnet, Premios y Asistentes.">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="nombre" value="{{ s.nombre }}">
                     <input type="hidden" name="activo" value="{{ 'false' if s.activo else 'true' }}">
                     <label class="switch">
-                      <input type="checkbox" {{ 'checked' if s.activo else '' }}
-                             onchange="this.form.submit()">
+                      <input type="checkbox" {{ 'checked' if s.activo else '' }}>
                       <span class="slider"></span>
                     </label>
                     <span class="estado-label">{{ 'Activo' if s.activo else 'Inactivo' }}</span>
@@ -72,8 +94,8 @@
             {% endfor %}
           </tbody>
         </table>
-      {% else %}
-        <div class="empty-state">No hay slot attendants registrados en Getnet.</div>
+      {% elif not error_bd %}
+        <div class="empty-state">No hay slot attendants con operaciones en Getnet ni Premios.</div>
       {% endif %}
     </section>
 
@@ -82,13 +104,15 @@
     <section class="config-card">
       <h3>Crear usuario</h3>
       <form method="post" action="{{ url_for('config.crear_usuario') }}" class="config-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="field">
           <label for="u-username">Usuario</label>
           <input type="text" name="username" id="u-username" required autocomplete="off">
         </div>
         <div class="field">
-          <label for="u-password">Contraseña</label>
-          <input type="password" name="password" id="u-password" required autocomplete="new-password">
+          <label for="u-password">Contraseña <small>(mínimo {{ password_min }} caracteres)</small></label>
+          <input type="password" name="password" id="u-password" required
+                 minlength="{{ password_min }}" autocomplete="new-password">
         </div>
         <div class="switch-row">
           <span>Administrador</span>
@@ -103,26 +127,81 @@
 
     <section class="config-card">
       <h3>Usuarios del sistema</h3>
+      <p class="config-help">
+        Un usuario <strong>desactivado</strong> no puede iniciar sesión pero conserva
+        su historial. No puedes desactivarte, quitarte el rol ni eliminarte a ti
+        mismo, ni dejar el sistema sin administradores activos. Cada usuario puede
+        cambiar su propia clave desde <em>Mi contraseña</em> (clic en su nombre, arriba).
+      </p>
       {% if usuarios %}
-        <table class="config-table">
+        <table class="config-table config-table--usuarios">
           <thead>
             <tr>
               <th>Usuario</th>
               <th>Rol</th>
+              <th>Creado</th>
               <th>Último ingreso</th>
+              <th class="estado">Estado</th>
+              <th class="estado">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {% for u in usuarios %}
-              <tr>
-                <td>{{ u.username }}</td>
-                <td>{{ 'Administrador' if u.is_admin else 'Usuario' }}</td>
-                <td>{{ u.last_login_at.strftime('%d/%m/%Y %H:%M') if u.last_login_at else '—' }}</td>
+              {% set es_yo = u.id == user.id %}
+              <tr class="{{ '' if u.activo else 'is-inactive' }}">
+                <td>
+                  {{ u.username }}
+                  {% if es_yo %}<span class="tag tag--yo">tú</span>{% endif %}
+                </td>
+                <td>
+                  <form method="post" action="{{ url_for('config.toggle_usuario_admin') }}" class="inline-form"
+                        {% if u.is_admin %}data-confirmar="¿Quitar el rol de administrador a «{{ u.username }}»?"{% endif %}>
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="id" value="{{ u.id }}">
+                    <input type="hidden" name="is_admin" value="{{ 'false' if u.is_admin else 'true' }}">
+                    <button type="submit" class="tag-btn {{ 'tag-btn--admin' if u.is_admin else '' }}"
+                            {% if es_yo %}disabled title="No puedes cambiar tu propio rol"{% else %}title="Cambiar a {{ 'usuario' if u.is_admin else 'administrador' }}"{% endif %}>
+                      {{ 'Administrador' if u.is_admin else 'Usuario' }}
+                    </button>
+                  </form>
+                </td>
+                <td class="muted">{{ u.created_at.strftime('%d/%m/%Y') if u.created_at else '—' }}</td>
+                <td class="muted">{{ u.last_login_at.strftime('%d/%m/%Y %H:%M') if u.last_login_at else 'Nunca' }}</td>
+                <td class="estado">
+                  <form method="post" action="{{ url_for('config.toggle_usuario_activo') }}"
+                        data-confirmar-off="¿Desactivar a «{{ u.username }}»? No podrá iniciar sesión.">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="id" value="{{ u.id }}">
+                    <input type="hidden" name="activo" value="{{ 'false' if u.activo else 'true' }}">
+                    <label class="switch {{ 'is-disabled' if es_yo else '' }}">
+                      <input type="checkbox" {{ 'checked' if u.activo else '' }} {{ 'disabled' if es_yo else '' }}>
+                      <span class="slider"></span>
+                    </label>
+                    <span class="estado-label">{{ 'Activo' if u.activo else 'Inactivo' }}</span>
+                  </form>
+                </td>
+                <td class="estado">
+                  <form method="post" action="{{ url_for('config.cambiar_password_usuario') }}" class="jefatura-row-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="id" value="{{ u.id }}">
+                    <input type="password" name="password" required minlength="{{ password_min }}"
+                           placeholder="Nueva clave" autocomplete="new-password" title="Nueva contraseña (mín. {{ password_min }})">
+                    <button type="submit" class="btn-secondary">Cambiar clave</button>
+                  </form>
+                  {% if not es_yo %}
+                    <form method="post" action="{{ url_for('config.eliminar_usuario') }}"
+                          data-confirmar="¿Eliminar definitivamente al usuario «{{ u.username }}»? Esta acción no se puede deshacer.">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="id" value="{{ u.id }}">
+                      <button type="submit" class="btn-danger">Eliminar</button>
+                    </form>
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
-      {% else %}
+      {% elif not error_bd %}
         <div class="empty-state">No hay usuarios registrados.</div>
       {% endif %}
     </section>
@@ -137,9 +216,12 @@
       <h3>Agregar jefatura</h3>
       <p class="config-help">
         Datos maestros del personal. El <strong>ID de usuario</strong> es único y se
-        usará para cruzar la información del apartado <strong>COMPS</strong>.
+        usa para cruzar la información del apartado <strong>COMPS</strong>. Al cargar
+        un Excel de COMPS se agregan solas las jefaturas que falten (sin área); aquí
+        puedes completar el área.
       </p>
       <form method="post" action="{{ url_for('config.crear_jefatura') }}" class="config-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="field">
           <label for="j-usuario">ID de usuario</label>
           <input type="text" name="usuario_id" id="j-usuario" required autocomplete="off">
@@ -160,23 +242,31 @@
     <section class="config-card">
       <h3>Jefaturas registradas</h3>
       {% if jefaturas %}
-        <table class="config-table">
+        <div class="config-toolbar">
+          <input type="search" class="config-search" data-buscar="#tabla-jefaturas"
+                 placeholder="Buscar por ID, nombre o área…" aria-label="Buscar jefatura">
+          <span class="config-count" data-contador="#tabla-jefaturas">{{ jefaturas|length }} jefaturas</span>
+        </div>
+        <table class="config-table" id="tabla-jefaturas">
           <thead>
             <tr>
               <th>ID usuario</th>
               <th>Nombre</th>
               <th>Área</th>
+              <th class="num">Cortesías</th>
               <th class="estado">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {% for j in jefaturas %}
-              <tr>
+              <tr class="{{ 'is-warning' if not j.area else '' }}">
                 <td>{{ j.usuario_id }}</td>
                 <td>{{ j.nombre }}</td>
-                <td>{{ j.area or '—' }}</td>
+                <td>{{ j.area or '—' }}{% if not j.area %} <span class="tag tag--warn" title="Sin área no aparece en Análisis general">sin área</span>{% endif %}</td>
+                <td class="num">{{ j.cortesias }}</td>
                 <td class="estado">
                   <form method="post" action="{{ url_for('config.editar_jefatura') }}" class="jefatura-row-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="id" value="{{ j.id }}">
                     <input type="text" name="usuario_id" value="{{ j.usuario_id }}" required title="ID de usuario">
                     <input type="text" name="nombre" value="{{ j.nombre }}" required title="Nombre">
@@ -184,7 +274,8 @@
                     <button type="submit" class="btn-secondary">Guardar</button>
                   </form>
                   <form method="post" action="{{ url_for('config.eliminar_jefatura') }}"
-                        onsubmit="return confirm('¿Eliminar la jefatura «{{ j.nombre }}»?');">
+                        data-confirmar="¿Eliminar la jefatura «{{ j.nombre }}»?{% if j.cortesias %} Tiene {{ j.cortesias }} cortesías asociadas que quedarán sin área.{% endif %}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="id" value="{{ j.id }}">
                     <button type="submit" class="btn-danger">Eliminar</button>
                   </form>
@@ -193,8 +284,8 @@
             {% endfor %}
           </tbody>
         </table>
-      {% else %}
-        <div class="empty-state">No hay jefaturas registradas. Agrega la primera arriba.</div>
+      {% elif not error_bd %}
+        <div class="empty-state">No hay jefaturas registradas. Agrega la primera arriba o carga un Excel de COMPS.</div>
       {% endif %}
     </section>
 
@@ -206,9 +297,11 @@
         % de margen teórico por categoría de jugador (DREAMS, GOLD, BLACK,
         PLATINUM, AUTOEXCLUIDO). Monto autorizado = Coin In ×
         <strong>Primario</strong> × % de la categoría del jugador (se usa en
-        Análisis y en Coin In Cero).
+        Análisis y en Coin In Cero). <strong>Primario</strong> es el factor base
+        y no se puede eliminar.
       </p>
       <form method="post" action="{{ url_for('config.crear_categoria_margen') }}" class="config-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="field">
           <label for="c-categoria">Categoría</label>
           <input type="text" name="categoria" id="c-categoria" required autocomplete="off">
@@ -216,7 +309,7 @@
         <div class="field">
           <label for="c-porcentaje">Porcentaje (%)</label>
           <input type="text" name="porcentaje" id="c-porcentaje" required autocomplete="off"
-                 placeholder="6,5">
+                 inputmode="decimal" placeholder="6,5">
         </div>
         <button type="submit" class="btn-primary">Agregar categoría</button>
       </form>
@@ -236,56 +329,40 @@
           <tbody>
             {% for c in categorias_margen %}
               <tr>
-                <td>{{ c.categoria }}</td>
-                <td class="num">{{ c.porcentaje }}%</td>
+                <td>{{ c.categoria }}{% if c.protegida %} <span class="tag tag--yo" title="Factor base de los montos autorizados">base</span>{% endif %}</td>
+                <td class="num">{{ c.porcentaje_fmt }}%</td>
                 <td class="estado">
-                  <form method="post" action="{{ url_for('config.editar_categoria_margen') }}" class="jefatura-row-form">
+                  <form method="post" action="{{ url_for('config.editar_categoria_margen') }}" class="jefatura-row-form"
+                        {% if c.protegida %}data-confirmar="Cambiar el % de Primario recalcula TODOS los montos autorizados de Coin In Cero y Análisis. ¿Continuar?"{% endif %}>
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="id" value="{{ c.id }}">
-                    <input type="text" name="categoria" value="{{ c.categoria }}" required title="Categoría">
-                    <input type="text" name="porcentaje" value="{{ c.porcentaje }}" required title="Porcentaje">
+                    <input type="text" name="categoria" value="{{ c.categoria }}" required title="Categoría"
+                           {% if c.protegida %}readonly{% endif %}>
+                    <input type="text" name="porcentaje" value="{{ c.porcentaje_fmt }}" required
+                           inputmode="decimal" title="Porcentaje">
                     <button type="submit" class="btn-secondary">Guardar</button>
                   </form>
-                  <form method="post" action="{{ url_for('config.eliminar_categoria_margen') }}"
-                        onsubmit="return confirm('¿Eliminar la categoría «{{ c.categoria }}»?');">
-                    <input type="hidden" name="id" value="{{ c.id }}">
-                    <button type="submit" class="btn-danger">Eliminar</button>
-                  </form>
+                  {% if not c.protegida %}
+                    <form method="post" action="{{ url_for('config.eliminar_categoria_margen') }}"
+                          data-confirmar="¿Eliminar la categoría «{{ c.categoria }}»? Los jugadores de esta categoría pasarán a tener monto autorizado $0 en Coin In Cero y Análisis.">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="id" value="{{ c.id }}">
+                      <button type="submit" class="btn-danger">Eliminar</button>
+                    </form>
+                  {% endif %}
                 </td>
               </tr>
             {% endfor %}
           </tbody>
         </table>
-      {% else %}
+      {% elif not error_bd %}
         <div class="empty-state">No hay categorías registradas.</div>
       {% endif %}
     </section>
-
-  {# --- Sección: Cambiar contraseña --- #}
-  {% elif seccion == 'password' %}
-    <section class="config-card">
-      <h3>Cambiar contraseña</h3>
-      <p class="config-help">Restablece la clave de cualquier usuario del sistema.</p>
-      <form method="post" action="{{ url_for('config.cambiar_password') }}" class="config-form">
-        <div class="field">
-          <label for="p-username">Usuario</label>
-          <select name="username" id="p-username" required>
-            <option value="">Selecciona…</option>
-            {% for u in usuarios %}
-              <option value="{{ u.username }}">{{ u.username }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="field">
-          <label for="p-password">Nueva contraseña</label>
-          <input type="password" name="password" id="p-password" required autocomplete="new-password">
-        </div>
-        <div class="field">
-          <label for="p-password2">Repetir contraseña</label>
-          <input type="password" name="password2" id="p-password2" required autocomplete="new-password">
-        </div>
-        <button type="submit" class="btn-primary">Actualizar contraseña</button>
-      </form>
-    </section>
   {% endif %}
 </main>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/config.js') }}"></script>
 {% endblock %}

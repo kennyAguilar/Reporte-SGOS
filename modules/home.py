@@ -1,17 +1,16 @@
-"""Home / Resumen principal."""
+"""Home / Resumen principal — panel de control de todos los módulos.
+
+Muestra, de un vistazo: alertas (módulos rezagados, jefaturas sin área),
+una tarjeta por módulo con la métrica del último mes y su variación, la
+tendencia de operaciones Getnet + Premios y el estado de la última carga de
+cada módulo. Las consultas viven en repositories/home_repository.py.
+"""
 from datetime import datetime
 
 from flask import Blueprint, render_template, request
 
 from core.auth import current_user, login_required
-from repositories import (
-    coinin_repository,
-    comps_repository,
-    getnet_repository,
-    mesas_repository,
-    premios_repository,
-    upload_repository,
-)
+from repositories import home_repository, upload_repository
 
 home_bp = Blueprint("home", __name__)
 
@@ -23,10 +22,9 @@ MESES = [
 
 
 def _safe(func, *args, **kwargs):
-    """Ejecuta una consulta de repositorio degradando a None ante cualquier error.
+    """Ejecuta una consulta degradando a None ante cualquier error.
 
-    Las tablas de módulos pueden no tener datos o un esquema aún no confirmado;
-    en ese caso el Home muestra el estado vacío en lugar de fallar.
+    Si la base no responde, el Home muestra el estado vacío en lugar de fallar.
     """
     try:
         return func(*args, **kwargs)
@@ -42,16 +40,16 @@ def index():
     nombre = (request.args.get("nombre") or "").strip() or None
     filas_totales = request.args.get("filas_totales") == "on"
 
-    getnet = _safe(getnet_repository.get_resumen, anio, mes, nombre)
-    premios = _safe(premios_repository.get_resumen, anio, mes, nombre)
-    comps = _safe(comps_repository.get_resumen, anio, mes, nombre)
-    coinin_mda = _safe(coinin_repository.get_resumen, "MDA", anio, mes, nombre)
-    # MDJ (Mesa de Juegos) vive en su propia tabla `mesas`, no en `coinin`.
-    coinin_mdj = _safe(mesas_repository.get_resumen, "MDJ", anio, mes, nombre)
+    panel = _safe(home_repository.get_panel, anio, mes, nombre)
+    cargas = _safe(home_repository.get_estado_cargas) or []
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
 
-    anio_actual = datetime.now().year
-    anios = list(range(anio_actual, anio_actual - 6, -1))
+    anios = _safe(home_repository.get_anios_disponibles) or []
+    if not anios:
+        anio_actual = datetime.now().year
+        anios = list(range(anio_actual, anio_actual - 6, -1))
+    if anio and anio.isdigit() and int(anio) not in anios:
+        anios = sorted(anios + [int(anio)], reverse=True)
 
     filtros = {
         "anio": anio,
@@ -63,11 +61,8 @@ def index():
     return render_template(
         "home.html",
         user=current_user(),
-        getnet=getnet,
-        premios=premios,
-        comps=comps,
-        coinin_mda=coinin_mda,
-        coinin_mdj=coinin_mdj,
+        panel=panel,
+        cargas=cargas,
         ultimo_archivo=ultimo_archivo,
         filtros=filtros,
         anios=anios,

@@ -206,3 +206,124 @@
   background: #fa4d56;
   color: #fff;
 }
+
+/* --- Aviso de error de base de datos --- */
+.config-alert {
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.config-alert--error {
+  background: #3a1d1f;
+  border: 1px solid #6f2a2f;
+  color: #ffb3b8;
+}
+
+/* --- Barra de herramientas sobre una tabla (buscador + contador) --- */
+.config-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.config-search {
+  flex: 0 1 280px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--layer-02);
+  border: 1px solid var(--layer-03);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.config-search:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
+.config-search::placeholder {
+  color: var(--text-helper);
+}
+
+.config-count {
+  font-size: 12px;
+  color: var(--text-helper);
+}
+
+/* --- Etiquetas y botones de rol --- */
+.tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+}
+
+.tag--yo {
+  background: var(--gold);
+  color: #161616;
+}
+
+.tag--warn {
+  background: #4a3a14;
+  color: #f1c21b;
+}
+
+.tag-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--layer-03);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tag-btn--admin {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.tag-btn:hover:not(:disabled) {
+  background: var(--layer-02);
+}
+
+.tag-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.inline-form {
+  display: inline;
+}
+
+.config-table td.muted {
+  color: var(--text-helper);
+}
+
+.config-table tr.is-warning td:nth-child(3) {
+  color: #f1c21b;
+}
+
+.switch.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.config-table--usuarios td.estado .jefatura-row-form input {
+  max-width: 130px;
+}
+
+.config-form label small {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-helper);
+}

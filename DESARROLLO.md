@@ -338,13 +338,39 @@ Ruta: `/configuracion`.
 
 | Pestaña | Qué permite |
 |---|---|
-| Asistentes | Activar o desactivar un slot attendant (los inactivos no aparecen en ningún gráfico) |
-| Usuarios | Ver la lista de usuarios y crear nuevos |
-| Contraseña | Cambiar la propia contraseña |
+| Slots activos | Activar o desactivar un slot attendant. Muestra operaciones Getnet / Premios / Total y la **última operación** para decidir. Buscador, contador y confirmación al desactivar. |
+| Gestión de usuarios | Crear, **activar/desactivar** (un inactivo no puede iniciar sesión), **cambiar rol**, **eliminar** y **restablecer contraseña** por fila. Protecciones: no puedes desactivarte, quitarte el rol ni eliminarte a ti mismo, ni dejar el sistema sin administradores activos. |
+| Jefaturas | Datos maestros para COMPS, con conteo de cortesías asociadas, aviso "sin área" y buscador. |
+| Categorías (margen) | % por categoría de jugador. **Primario** es el factor base: no se puede eliminar y cambiar su % pide confirmación. |
 
-Los asistentes inactivos se excluyen en todas las consultas de Getnet **y Premios**
-gracias al filtro `_FILTRO_ACTIVOS` definido en cada repositorio. La lista de la
-pestaña Asistentes combina los nombres presentes en `getnet` ∪ `premios`.
+Los asistentes inactivos se excluyen en todas las consultas de Getnet, Premios
+**y Asistentes** gracias al filtro `_FILTRO_ACTIVOS` definido en cada
+repositorio. La lista de la pestaña Slots combina los nombres presentes en
+`getnet` ∪ `premios`.
+
+Si alguna consulta falla (BD caída o esquema incompleto), la página muestra un
+aviso en vez de "no hay datos".
+
+### 10.1 Mi contraseña
+
+Cualquier usuario (admin o no) cambia su propia clave en `/mi-contrasena`
+(clic en su nombre en el header). Pide la contraseña actual y la nueva dos
+veces. Largo mínimo: `PASSWORD_MIN = 8` en [modules/auth.py](modules/auth.py),
+que también aplica a las altas y restablecimientos desde Configuración.
+
+### 10.2 Protección CSRF
+
+[core/csrf.py](core/csrf.py) registra un `before_request` que exige en todo
+POST un campo `_csrf_token` igual al guardado en la sesión (o la cabecera
+`X-CSRF-Token`). El token lo genera `csrf_token()` (disponible en todas las
+plantillas). **Todo formulario POST nuevo debe incluir**:
+
+```html
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+```
+
+Sin ese campo la petición responde 400. El token sobrevive al login
+(`session.clear()` lo preserva) y se regenera tras el logout.
 
 ---
 
@@ -483,7 +509,38 @@ se calcula en Python. Bloques de la vista:
 
 ---
 
-## 13. Pendiente
+## 13. Resumen (pantalla principal) ✅ (panel de control)
+
+Ruta `/` ([modules/home.py](modules/home.py), [repositories/home_repository.py](repositories/home_repository.py)).
+Dejó de ser una lista de "estado de carga" por módulo para convertirse en un
+panel de control. Cada módulo se describe en la lista `MODULOS` del
+repositorio (tabla, columna de fecha, métrica principal, monto, cómo aplica el
+filtro Nombre, URLs de dashboard y carga, tipo en `upload_log`); agregar un
+módulo nuevo al panel es agregar una entrada ahí.
+
+| Bloque | Qué muestra |
+|---|---|
+| **Alertas** | Módulos rezagados (rojo/amarillo), "nada cargado en los últimos N días", jefaturas sin área. Cada alerta enlaza a la acción (Cargar / Revisar). Si no hay nada, un aviso verde. |
+| **Último mes por módulo** | Una tarjeta por módulo: métrica principal del último mes con datos (o del mes filtrado), Δ vs mes calendario anterior, monto con su Δ, última jornada, días desde hoy y enlace a la carga. Arriba, el total Getnet + Premios del mes con su Δ. |
+| **Tendencia** | Operaciones por mes Getnet + Premios (barras apiladas, últimos 6 meses). |
+| **Estado de carga** | Tabla única: última jornada, días desde hoy, rezago, último archivo, quién lo cargó, cuándo, filas insertadas/omitidas (de `upload_log`, que antes se registraba pero no se mostraba). Insertadas = 0 se resalta. |
+| **Leyenda** | Cómo leer el panel y qué filtra "Nombre" en cada módulo. |
+
+**Semáforo de frescura.** Las cargas son mensuales, así que medir el atraso
+contra "hoy" pondría todo en rojo. Se mide el *rezago* de cada módulo respecto
+del módulo más al día: verde ≤ `UMBRAL_DIAS/2`, amarillo ≤ `UMBRAL_DIAS` (7),
+rojo más. Además se alerta si ni el líder tiene datos de los últimos 35 días.
+
+**Mes parcial.** Si la última jornada del mes de referencia no llega a fin de
+mes, la tarjeta lo marca (`parcial · hasta dd/mm`) y atenúa el Δ, porque
+compara un mes incompleto contra uno completo.
+
+Formatos unificados: fechas `dd/mm/aaaa`, meses en español, años del selector
+tomados de los datos reales de todos los módulos.
+
+---
+
+## 14. Pendiente
 
 - [ ] Módulo **COMPS** (mismo patrón que Getnet / Premios).
 - [ ] Módulo **CoinIn**.

@@ -1,15 +1,18 @@
 """Módulo de Configuración (solo administradores).
 
-Tres secciones en una sola página con pestañas:
+Cuatro secciones en una sola página con pestañas:
 
 - Slots activos: activar/desactivar slot attendants para que cuenten (o no) en
-  las estadísticas de Getnet.
-- Gestión de usuarios: listar y crear usuarios.
+  las estadísticas de Getnet, Premios y Asistentes.
+- Gestión de usuarios: crear, activar/desactivar, cambiar rol, eliminar y
+  restablecer contraseñas. Con protecciones: no puedes desactivarte, quitarte
+  el rol ni eliminarte a ti mismo, ni dejar el sistema sin administradores.
 - Jefaturas: datos maestros (usuario_id, nombre, área) para el módulo COMPS.
-- Cambiar contraseña: restablecer la clave de cualquier usuario.
+- Categorías: % de margen por categoría de jugador (Primario no se elimina).
 
 Toda acción se hace por POST y redirige de vuelta (patrón PRG) con un mensaje
-flash para evitar reenvíos al recargar.
+flash para evitar reenvíos al recargar. El cambio de la PROPIA contraseña está
+en /mi-contrasena (modules/auth.py) y lo puede usar cualquier usuario.
 """
 from flask import (
     Blueprint,
@@ -21,13 +24,14 @@ from flask import (
 )
 
 from core.auth import admin_required, current_user
+from modules.auth import PASSWORD_MIN, validar_password
 from repositories import config_repository
 
 config_bp = Blueprint("config", __name__, url_prefix="/configuracion")
 
 
 def _safe(func, *args, **kwargs):
-    """Ejecuta una consulta degradando a [] / None ante cualquier error."""
+    """Ejecuta una consulta degradando a None ante cualquier error."""
     try:
         return func(*args, **kwargs)
     except Exception:
@@ -37,24 +41,34 @@ def _safe(func, *args, **kwargs):
 @config_bp.route("/")
 @admin_required
 def index():
-    """Página de configuración con las tres secciones."""
+    """Página de configuración con sus secciones."""
     _safe(config_repository.ensure_schema)
     seccion = request.args.get("seccion") or "slots"
-    slots = _safe(config_repository.list_slot_attendants) or []
-    usuarios = _safe(config_repository.list_users) or []
-    jefaturas = _safe(config_repository.list_jefaturas) or []
-    areas = _safe(config_repository.list_areas) or []
-    categorias_margen = _safe(config_repository.list_categorias_margen) or []
+    if seccion == "password":
+        seccion = "usuarios"
+
+    slots = _safe(config_repository.list_slot_attendants)
+    usuarios = _safe(config_repository.list_users)
+    jefaturas = _safe(config_repository.list_jefaturas)
+    areas = _safe(config_repository.list_areas)
+    categorias_margen = _safe(config_repository.list_categorias_margen)
+    # None = la consulta falló (BD caída o esquema incompleto); [] = sin datos.
+    error_bd = any(x is None for x in (slots, usuarios, jefaturas, categorias_margen))
+
+    slots = slots or []
     return render_template(
         "config/index.html",
         user=current_user(),
         active="config",
         seccion=seccion,
         slots=slots,
-        usuarios=usuarios,
-        jefaturas=jefaturas,
-        areas=areas,
-        categorias_margen=categorias_margen,
+        slots_activos=sum(1 for s in slots if s["activo"]),
+        usuarios=usuarios or [],
+        jefaturas=jefaturas or [],
+        areas=areas or [],
+        categorias_margen=categorias_margen or [],
+        error_bd=error_bd,
+        password_min=PASSWORD_MIN,
     )
 
 
@@ -82,8 +96,10 @@ def crear_usuario():
     password = request.form.get("password") or ""
     is_admin = request.form.get("is_admin") == "on"
 
-    if not username or not password:
-        flash("Usuario y contraseña son obligatorios.", "error")
+    error = None if username else "El nombre de usuario es obligatorio."
+    error = error or validar_password(password)
+    if error:
+        flash(error, "error")
     else:
         try:
             creado = config_repository.create_user(username, password, is_admin)
@@ -96,18 +112,125 @@ def crear_usuario():
     return redirect(url_for("config.index", seccion="usuarios"))
 
 
+def _usuario_objetivo():
+    """Lee el id del formulario y devuelve (usuario, error). El usuario es un dict."""
+    raw = (request.form.get("id") or "").strip()
+    if not raw.isdigit():
+        return None, "Usuario no válido."
+    usuario = config_repository.get_user(int(raw))
+    if not usuario:
+        return None, "No existe el usuario."
+    return usuario, None
+
+
+def _protege_ultimo_admin(usuario, accion):
+    """Mensaje de error si la acción dejaría el sistema sin administradores activos."""
+    if usuario["is_admin"] and usuario["activo"]:
+        if config_repository.count_admins_activos(excluir_id=usuario["id"]) == 0:
+            return f"No se puede {accion}: es el único administrador activo."
+    return None
+
+
+@config_bp.route("/usuarios/activo", methods=["POST"])
+@admin_required
+def toggle_usuario_activo():
+    """Activa o desactiva un usuario (un usuario inactivo no puede iniciar sesión)."""
+    yo = current_user()
+    activar = request.form.get("activo") == "true"
+    try:
+        usuario, error = _usuario_objetivo()
+        if not error and not activar:
+            if usuario["id"] == yo["id"]:
+                error = "No puedes desactivar tu propia cuenta."
+            else:
+                error = _protege_ultimo_admin(usuario, "desactivar")
+        if error:
+            flash(error, "error")
+        else:
+            config_repository.set_user_activo(usuario["id"], activar)
+            estado = "activado" if activar else "desactivado"
+            flash(f"Usuario «{usuario['username']}» {estado}.", "success")
+    except Exception:
+        flash("No se pudo actualizar el usuario.", "error")
+    return redirect(url_for("config.index", seccion="usuarios"))
+
+
+@config_bp.route("/usuarios/admin", methods=["POST"])
+@admin_required
+def toggle_usuario_admin():
+    """Otorga o quita el rol de administrador."""
+    yo = current_user()
+    hacer_admin = request.form.get("is_admin") == "true"
+    try:
+        usuario, error = _usuario_objetivo()
+        if not error and not hacer_admin:
+            if usuario["id"] == yo["id"]:
+                error = "No puedes quitarte el rol de administrador a ti mismo."
+            else:
+                error = _protege_ultimo_admin(usuario, "quitar el rol")
+        if error:
+            flash(error, "error")
+        else:
+            config_repository.set_user_admin(usuario["id"], hacer_admin)
+            rol = "administrador" if hacer_admin else "usuario"
+            flash(f"«{usuario['username']}» ahora es {rol}.", "success")
+    except Exception:
+        flash("No se pudo actualizar el rol.", "error")
+    return redirect(url_for("config.index", seccion="usuarios"))
+
+
+@config_bp.route("/usuarios/eliminar", methods=["POST"])
+@admin_required
+def eliminar_usuario():
+    """Elimina un usuario definitivamente."""
+    yo = current_user()
+    try:
+        usuario, error = _usuario_objetivo()
+        if not error:
+            if usuario["id"] == yo["id"]:
+                error = "No puedes eliminar tu propia cuenta."
+            else:
+                error = _protege_ultimo_admin(usuario, "eliminar")
+        if error:
+            flash(error, "error")
+        else:
+            config_repository.delete_user(usuario["id"])
+            flash(f"Usuario «{usuario['username']}» eliminado.", "success")
+    except Exception:
+        flash("No se pudo eliminar el usuario.", "error")
+    return redirect(url_for("config.index", seccion="usuarios"))
+
+
+@config_bp.route("/usuarios/password", methods=["POST"])
+@admin_required
+def cambiar_password_usuario():
+    """Restablece la contraseña de un usuario (acción por fila)."""
+    password = request.form.get("password") or ""
+    try:
+        usuario, error = _usuario_objetivo()
+        error = error or validar_password(password)
+        if error:
+            flash(error, "error")
+        else:
+            config_repository.reset_password_by_id(usuario["id"], password)
+            flash(f"Contraseña actualizada para «{usuario['username']}».", "success")
+    except Exception:
+        flash("No se pudo actualizar la contraseña.", "error")
+    return redirect(url_for("config.index", seccion="usuarios"))
+
+
 @config_bp.route("/password", methods=["POST"])
 @admin_required
 def cambiar_password():
-    """Restablece la contraseña de un usuario."""
+    """Restablece la contraseña de un usuario por username (compatibilidad)."""
     username = (request.form.get("username") or "").strip()
     password = request.form.get("password") or ""
     password2 = request.form.get("password2") or ""
 
-    if not username or not password:
-        flash("Usuario y contraseña son obligatorios.", "error")
-    elif password != password2:
-        flash("Las contraseñas no coinciden.", "error")
+    error = None if username else "El usuario es obligatorio."
+    error = error or validar_password(password, password2)
+    if error:
+        flash(error, "error")
     else:
         try:
             ok = config_repository.reset_password(username, password)
@@ -117,7 +240,7 @@ def cambiar_password():
                 flash(f"No existe el usuario «{username}».", "error")
         except Exception:
             flash("No se pudo actualizar la contraseña.", "error")
-    return redirect(url_for("config.index", seccion="password"))
+    return redirect(url_for("config.index", seccion="usuarios"))
 
 
 @config_bp.route("/jefaturas", methods=["POST"])
@@ -240,7 +363,7 @@ def editar_categoria_margen():
 @config_bp.route("/categorias/eliminar", methods=["POST"])
 @admin_required
 def eliminar_categoria_margen():
-    """Elimina una categoría."""
+    """Elimina una categoría (Primario está protegida)."""
     id = (request.form.get("id") or "").strip()
     if not id:
         flash("Categoría no válida.", "error")
@@ -251,6 +374,8 @@ def eliminar_categoria_margen():
                 flash("Categoría eliminada.", "success")
             else:
                 flash("No se encontró la categoría.", "error")
+        except ValueError as exc:
+            flash(str(exc), "error")
         except Exception:
             flash("No se pudo eliminar la categoría.", "error")
     return redirect(url_for("config.index", seccion="categorias"))

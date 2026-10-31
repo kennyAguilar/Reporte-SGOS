@@ -5,6 +5,7 @@
 {% block styles %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
 {% endblock %}
 
 {% block body %}
@@ -15,181 +16,181 @@
 <div class="dashboard-layout" id="dashboard-layout">
   {% include "partials/_filters.html" with context %}
 
-  <!-- Contenido principal -->
   <main class="dashboard-main">
-    <!-- Getnet -->
-    <section class="module-block">
-      <div class="module-head">
-        <div class="module-eyebrow">Getnet</div>
-        <h2>Estado de carga</h2>
-      </div>
-      {% if getnet %}
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-label">Mes cargado</div>
-            <div class="kpi-value">{{ getnet.mes_cargado }}</div>
-            <div class="kpi-sub">{{ getnet.fecha_carga }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Hasta jornada</div>
-            <div class="kpi-value">{{ getnet.hasta_jornada }}</div>
-            <div class="kpi-sub">Última jornada registrada</div>
-          </div>
-          <div class="kpi-card kpi-card--accent">
-            <div class="kpi-label">{{ getnet.total_label_titulo }}</div>
-            <div class="kpi-value financiero">{{ getnet.total_valor }}</div>
-            <div class="kpi-sub">{{ getnet.total_label }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Última jornada</div>
-            <div class="kpi-value financiero">{{ getnet.ultima_valor }}</div>
-            <div class="kpi-sub">{{ getnet.ultima_label }}</div>
-          </div>
-        </div>
-      {% else %}
-        <div class="empty-state">No hay carga registrada para este módulo.</div>
-      {% endif %}
-    </section>
+    <div class="module-head">
+      <div class="module-eyebrow">Resumen</div>
+      <h2>Panel de control</h2>
+    </div>
 
-    <!-- Premios -->
-    <section class="module-block">
-      <div class="module-head">
-        <div class="module-eyebrow">Premios</div>
-        <h2>Estado de carga</h2>
-      </div>
-      {% if premios %}
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-label">Mes cargado</div>
-            <div class="kpi-value">{{ premios.mes_cargado }}</div>
-            <div class="kpi-sub">{{ premios.fecha_carga }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Hasta jornada</div>
-            <div class="kpi-value">{{ premios.hasta_jornada }}</div>
-            <div class="kpi-sub">Última jornada registrada</div>
-          </div>
-          <div class="kpi-card kpi-card--accent">
-            <div class="kpi-label">{{ premios.total_label_titulo }}</div>
-            <div class="kpi-value financiero">{{ premios.total_valor }}</div>
-            <div class="kpi-sub">{{ premios.total_label }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Última jornada</div>
-            <div class="kpi-value financiero">{{ premios.ultima_valor }}</div>
-            <div class="kpi-sub">{{ premios.ultima_label }}</div>
-          </div>
-        </div>
-      {% else %}
-        <div class="empty-state">No hay carga registrada para este módulo.</div>
-      {% endif %}
-    </section>
+    {% if not panel %}
+      <div class="empty-state">No hay datos cargados todavía o la base de datos no responde. Carga un archivo para comenzar.</div>
+    {% else %}
 
-    <!-- COMPS -->
-    <section class="module-block">
-      <div class="module-head">
-        <div class="module-eyebrow">Comps</div>
-        <h2>Estado de carga</h2>
-      </div>
-      {% if comps %}
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-label">Mes cargado</div>
-            <div class="kpi-value">{{ comps.mes_cargado }}</div>
-            <div class="kpi-sub">{{ comps.fecha_carga }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Hasta jornada</div>
-            <div class="kpi-value">{{ comps.hasta_jornada }}</div>
-            <div class="kpi-sub">Última jornada registrada</div>
-          </div>
-          <div class="kpi-card kpi-card--accent">
-            <div class="kpi-label">{{ comps.total_label_titulo }}</div>
-            <div class="kpi-value financiero">{{ comps.total_valor }}</div>
-            <div class="kpi-sub">{{ comps.total_label }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Última jornada</div>
-            <div class="kpi-value financiero">{{ comps.ultima_valor }}</div>
-            <div class="kpi-sub">{{ comps.ultima_label }}</div>
-          </div>
-        </div>
+      {# === Alertas === #}
+      {% if panel.alertas %}
+        <section class="home-alertas">
+          {% for a in panel.alertas %}
+            <div class="home-alerta home-alerta--{{ a.nivel }}">
+              <span class="home-alerta-icono">{{ '🔴' if a.nivel == 'bad' else ('🟡' if a.nivel == 'warn' else 'ℹ️') }}</span>
+              <span class="home-alerta-texto">{{ a.texto }}</span>
+              <a class="btn-secondary home-alerta-accion" href="{{ url_for(a.url, **a.url_args) }}">{{ a.accion }}</a>
+            </div>
+          {% endfor %}
+        </section>
       {% else %}
-        <div class="empty-state">No hay carga registrada para este módulo.</div>
+        <section class="home-alertas">
+          <div class="home-alerta home-alerta--ok">
+            <span class="home-alerta-icono">🟢</span>
+            <span class="home-alerta-texto">Todos los módulos están al día{% if panel.lider %} (última jornada {{ panel.lider.ultima_fmt }}){% endif %}.</span>
+          </div>
+        </section>
       {% endif %}
-    </section>
 
-    <!-- Coin In MDA -->
-    <section class="module-block">
-      <div class="module-head">
-        <div class="module-eyebrow">Coin In MDA</div>
-        <h2>Estado de carga</h2>
-      </div>
-      {% if coinin_mda %}
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-label">Mes cargado</div>
-            <div class="kpi-value">{{ coinin_mda.mes_cargado }}</div>
-            <div class="kpi-sub">{{ coinin_mda.fecha_carga }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Hasta jornada</div>
-            <div class="kpi-value">{{ coinin_mda.hasta_jornada }}</div>
-            <div class="kpi-sub">Última jornada registrada</div>
-          </div>
-          <div class="kpi-card kpi-card--accent">
-            <div class="kpi-label">{{ coinin_mda.total_label_titulo }}</div>
-            <div class="kpi-value financiero">{{ coinin_mda.total_valor }}</div>
-            <div class="kpi-sub">{{ coinin_mda.total_label }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Última jornada</div>
-            <div class="kpi-value financiero">{{ coinin_mda.ultima_valor }}</div>
-            <div class="kpi-sub">{{ coinin_mda.ultima_label }}</div>
-          </div>
+      {# === Tarjetas por módulo === #}
+      <section class="home-panel">
+        <div class="home-panel-head">
+          <h3>Último mes por módulo</h3>
+          {% if panel.totales_mes %}
+            <div class="home-total">
+              <span class="home-total-label">Operaciones {{ panel.totales_mes.mes_ref }} · Getnet + Premios</span>
+              <span class="home-total-valor">{{ panel.totales_mes.ops }}</span>
+              {% if panel.totales_mes.delta %}
+                <span class="kpi-delta kpi-delta--{{ panel.totales_mes.delta.dir }}">{{ panel.totales_mes.delta.pct }}</span>
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
-      {% else %}
-        <div class="empty-state">No hay carga registrada para este módulo.</div>
-      {% endif %}
-    </section>
+        <div class="home-grid">
+          {% for m in panel.modulos %}
+            <article class="home-card home-card--{{ m.estado }}">
+              <div class="home-card-top">
+                <a class="home-card-titulo" href="{{ url_for(m.url) }}">{{ m.titulo }}</a>
+                <span class="home-estado home-estado--{{ m.estado }}"
+                      title="{% if m.rezago is not none %}{{ m.rezago }} días de rezago respecto del módulo más al día{% else %}Sin datos{% endif %}">
+                  {% if m.estado == 'ok' %}Al día{% elif m.estado == 'warn' %}{{ m.rezago }} d{% elif m.estado == 'bad' %}{{ m.rezago }} d atrás{% else %}—{% endif %}
+                </span>
+              </div>
+              {% if m.sin_datos %}
+                <div class="home-card-valor muted">Sin datos</div>
+                <div class="home-card-sub">para este filtro</div>
+              {% else %}
+                <div class="home-card-mes">{{ m.mes_ref }}{% if m.parcial %} <span class="tag-parcial" title="Solo hay datos hasta el {{ m.parcial_hasta }}; la variación compara un mes incompleto">parcial · hasta {{ m.parcial_hasta }}</span>{% endif %}</div>
+                <div class="home-card-valor">{{ m.valor_fmt }} <small>{{ m.unidad }}</small></div>
+                <div class="home-card-delta {{ 'is-parcial' if m.parcial else '' }}">
+                  {% if m.delta %}
+                    <span class="kpi-delta kpi-delta--{{ m.delta.dir }}">{{ m.delta.pct }}</span>
+                    <em>vs mes anterior</em>
+                  {% else %}
+                    <em>sin mes anterior para comparar</em>
+                  {% endif %}
+                </div>
+                <div class="home-card-sub">
+                  <span>{{ m.monto_label }} <strong>{{ m.monto_fmt }}</strong></span>
+                  {% if m.delta_monto %}<span class="kpi-delta kpi-delta--{{ m.delta_monto.dir }} small">{{ m.delta_monto.pct }}</span>{% endif %}
+                </div>
+                <div class="home-card-foot">
+                  <span>Última jornada <strong>{{ m.ultima_fmt }}</strong><br>hace {{ m.dias_hoy }} días</span>
+                  <a href="{{ url_for(m.url_carga, **m.url_carga_args) }}">Cargar</a>
+                </div>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      </section>
 
-    <!-- Coin In MDJ -->
-    <section class="module-block">
-      <div class="module-head">
-        <div class="module-eyebrow">Coin In MDJ</div>
-        <h2>Estado de carga</h2>
-      </div>
-      {% if coinin_mdj %}
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="kpi-label">Mes cargado</div>
-            <div class="kpi-value">{{ coinin_mdj.mes_cargado }}</div>
-            <div class="kpi-sub">{{ coinin_mdj.fecha_carga }}</div>
+      {# === Tendencia === #}
+      {% if panel.tendencia %}
+        <section class="chart-card">
+          <h3>📈 Operaciones por mes · Getnet + Premios <span class="badge badge--muted">últimos {{ panel.tendencia.labels|length }} meses</span></h3>
+          <div class="chart-box"><canvas id="chart-home-tendencia"></canvas></div>
+        </section>
+        <script id="home-data" type="application/json">{{ panel.tendencia | tojson }}</script>
+      {% endif %}
+
+      {# === Estado de carga === #}
+      <section class="chart-card">
+        <h3>🗂️ Estado de carga por módulo</h3>
+        <div class="info-note">
+          ℹ️ <strong>Rezago</strong> = días entre la última jornada del módulo y la del
+          módulo más al día{% if panel.lider %} ({{ panel.lider.titulo }}, {{ panel.lider.ultima_fmt }}){% endif %}.
+          Verde ≤ {{ (panel.umbral / 2)|int }} días, amarillo ≤ {{ panel.umbral }}, rojo más.
+          <strong>Última carga</strong> sale del registro de cargas (archivo, quién y cuándo).
+          Filas <em>omitidas</em> son duplicados ya existentes.
+        </div>
+        <div class="heatmap-scroll">
+          <table class="record-table sortable-table">
+            <thead>
+              <tr>
+                <th>Módulo</th>
+                <th>Última jornada</th>
+                <th class="num">Hace</th>
+                <th class="num">Rezago</th>
+                <th>Último archivo</th>
+                <th>Cargado por</th>
+                <th>Fecha de carga</th>
+                <th class="num">Insertadas</th>
+                <th class="num">Omitidas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% set cargas_por = {} %}
+              {% for c in cargas %}{% set _ = cargas_por.update({c.clave: c}) %}{% endfor %}
+              {% for m in panel.modulos %}
+                {% set c = cargas_por.get(m.clave) %}
+                <tr>
+                  <td><a href="{{ url_for(m.url) }}">{{ m.titulo }}</a></td>
+                  <td data-sort="{{ m.ultima.isoformat() if m.ultima else '' }}">{{ m.ultima_fmt if m.ultima else '—' }}</td>
+                  <td class="num" data-sort="{{ m.dias_hoy if m.dias_hoy is defined else '' }}">{{ (m.dias_hoy ~ ' días') if m.dias_hoy is defined else '—' }}</td>
+                  <td class="num" data-sort="{{ m.rezago if m.rezago is not none else '' }}">
+                    {% if m.rezago is not none %}<span class="home-estado home-estado--{{ m.estado }}">{{ m.rezago }} d</span>{% else %}—{% endif %}
+                  </td>
+                  <td class="muted" title="{{ c.archivo if c else '' }}">{{ c.archivo if c else '—' }}</td>
+                  <td class="muted">{{ c.usuario if c else '—' }}</td>
+                  <td class="muted">{{ c.fecha if c else '—' }}</td>
+                  <td class="num {{ 'delta--down' if c and c.sin_nuevas else '' }}">{{ c.insertadas if c else '—' }}</td>
+                  <td class="num muted">{{ c.omitidas if c else '—' }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {# === Leyenda === #}
+      <section class="legend-card">
+        <h3 class="legend-title">📒 Cómo leer este panel</h3>
+        <div class="legend-grid">
+          <div>
+            <strong>Último mes</strong>
+            <p>Cada tarjeta muestra la métrica principal del último mes con datos (o del mes elegido en el filtro) y su variación contra el mes calendario anterior. Si el mes está <em>parcial</em> (no llega a fin de mes), la variación se atenúa porque compara contra un mes completo.</p>
           </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Hasta jornada</div>
-            <div class="kpi-value">{{ coinin_mdj.hasta_jornada }}</div>
-            <div class="kpi-sub">Última jornada registrada</div>
+          <div>
+            <strong>Semáforo</strong>
+            <p>Compara cada módulo con el más al día. Como las cargas son mensuales, lo importante es que ningún módulo se quede atrás respecto de los demás.</p>
           </div>
-          <div class="kpi-card kpi-card--accent">
-            <div class="kpi-label">{{ coinin_mdj.total_label_titulo }}</div>
-            <div class="kpi-value financiero">{{ coinin_mdj.total_valor }}</div>
-            <div class="kpi-sub">{{ coinin_mdj.total_label }}</div>
+          <div>
+            <strong>Filtro Nombre</strong>
+            <p>Busca en el campo propio de cada módulo:
+              {% for m in panel.modulos %}{{ m.titulo }} → {{ m.nombre_desc }}{{ '; ' if not loop.last else '.' }}{% endfor %}
+            </p>
           </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Última jornada</div>
-            <div class="kpi-value financiero">{{ coinin_mdj.ultima_valor }}</div>
-            <div class="kpi-sub">{{ coinin_mdj.ultima_label }}</div>
+          <div>
+            <strong>Asistentes inactivos</strong>
+            <p>Getnet y Premios excluyen a los asistentes desactivados en Configuración, igual que sus módulos.</p>
           </div>
         </div>
-      {% else %}
-        <div class="empty-state">No hay carga registrada para este módulo.</div>
-      {% endif %}
-    </section>
+      </section>
+
+    {% endif %}
   </main>
 </div>
 {% endblock %}
 
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
+  {% if panel and panel.tendencia %}
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
 {% endblock %}

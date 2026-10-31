@@ -4,6 +4,7 @@ import os
 from flask import Flask, render_template
 
 from config import Config
+from core.csrf import init_csrf
 from modules.analisis import analisis_bp
 from modules.asistentes import asistentes_bp
 from modules.auth import auth_bp
@@ -21,6 +22,7 @@ from repositories import coinin_repository, config_repository, mesas_repository,
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    init_csrf(app)
 
     @app.url_defaults
     def _versionar_estaticos(endpoint, values):
