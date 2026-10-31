@@ -18,6 +18,8 @@
        class="{{ 'active' if active == 'getnet' else '' }}">Getnet</a>
     <a href="{{ url_for('premios.dashboard') }}"
        class="{{ 'active' if active == 'premios' else '' }}">Premios</a>
+    <a href="{{ url_for('asistentes.rendimiento') }}"
+       class="{{ 'active' if active == 'asistentes' else '' }}">Asistentes</a>
     <a href="{{ url_for('comps.dashboard') }}"
        class="{{ 'active' if active == 'comps' else '' }}">Comps</a>
     <a href="{{ url_for('analisis.index') }}"

@@ -212,6 +212,13 @@
       "Transacciones"
     );
   }
+  // --- Rendimiento combinado (Asistentes): Top 10 apilado Getnet + Premios ---
+  if (datos && datos.top_mix) {
+    crearBarrasHApiladas("chart-top-mix", datos.top_mix.labels, [
+      { label: "Getnet", data: datos.top_mix.getnet, color: ORO },
+      { label: "Premios", data: datos.top_mix.premios, color: AZUL },
+    ]);
+  }
   if (datos && datos.top_prom && datos.top_prom.labels.length) {
     crearBarrasH(
       "chart-top-prom",
@@ -253,6 +260,48 @@
         scales: {
           x: { ticks: { color: TEXTO }, grid: { color: GRID }, beginAtZero: true },
           y: { ticks: { color: TEXTO }, grid: { color: GRID } },
+        },
+      },
+    });
+  }
+
+  // Barras horizontales apiladas: series = [{label, data, color}, ...].
+  // El tooltip muestra la parte de cada serie y el total de la barra.
+  function crearBarrasHApiladas(id, labels, series) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const previo = Chart.getChart(el);
+    if (previo) previo.destroy();
+    new Chart(el, {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: series.map((s) => ({
+          label: s.label,
+          data: s.data,
+          backgroundColor: s.color,
+          borderRadius: 2,
+          maxBarThickness: 22,
+        })),
+      },
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: TEXTO, boxWidth: 12 } },
+          tooltip: {
+            callbacks: {
+              footer: (items) => {
+                const total = items.reduce((acc, it) => acc + it.parsed.x, 0);
+                return "Total: " + total.toLocaleString("es-CL");
+              },
+            },
+          },
+        },
+        scales: {
+          x: { stacked: true, ticks: { color: TEXTO }, grid: { color: GRID }, beginAtZero: true },
+          y: { stacked: true, ticks: { color: TEXTO }, grid: { color: GRID } },
         },
       },
     });

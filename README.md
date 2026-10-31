@@ -27,13 +27,15 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 │   ├── auth.py                 # Blueprint: /login, /logout
 │   ├── home.py                 # Blueprint: / (resumen general)
 │   ├── getnet.py               # Blueprint: /getnet (dashboard, histórico, record, rendimiento)
-│   ├── premios.py              # Blueprint: /premios (dashboard, histórico, record)
+│   ├── premios.py              # Blueprint: /premios (dashboard, histórico, record, rendimiento)
+│   ├── asistentes.py           # Blueprint: /asistentes (rendimiento combinado Getnet + Premios)
 │   ├── upload.py               # Blueprint: /upload (carga de Excel Getnet y Premios)
 │   └── config.py               # Blueprint: /configuracion (admin — asistentes y usuarios)
 ├── repositories/
 │   ├── usuarios_repository.py
 │   ├── getnet_repository.py
 │   ├── premios_repository.py
+│   ├── asistentes_repository.py
 │   ├── comps_repository.py
 │   ├── upload_repository.py
 │   └── config_repository.py
@@ -157,6 +159,7 @@ La aplicación usa Neon.tech (PostgreSQL serverless). La tabla principal de usua
 | Premios — Histórico (resumen mensual con Δ y ticket, operaciones por hora, conteo anual) | ✅ Implementado |
 | Premios — Record Asistentes (podio, resumen por tipo, transacciones, acumulado) | ✅ Implementado |
 | Premios — Rendimiento (evaluación por asistente: prom./jornada, índice vs equipo, tendencia) | ✅ Implementado |
+| Asistentes — Rendimiento combinado Getnet + Premios (solo cantidades, podio, Top 10 apilado) | ✅ Implementado |
 | COMPS | 📋 Pendiente |
 | CoinIn | 📋 Pendiente |
 

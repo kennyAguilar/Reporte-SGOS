@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Asistentes · Rendimiento — SGOS{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/getnet.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set active = "asistentes" %}
+{# El filtro del header se queda en esta sección al aplicar/limpiar. #}
+{% set filter_action = url_for('asistentes.rendimiento') %}
+{% include "partials/_header.html" with context %}
+
+<div class="dashboard-layout" id="dashboard-layout">
+  {% include "partials/_filters.html" with context %}
+
+  <main class="dashboard-main">
+    <div class="module-head">
+      <div class="module-eyebrow">Asistentes</div>
+      <h2>Rendimiento combinado · Getnet + Premios</h2>
+    </div>
+
+    {% if not rendimiento %}
+      <div class="empty-state">No hay operaciones de asistentes para este filtro. Ajusta los filtros o carga archivos de Getnet / Premios.</div>
+    {% else %}
+      {% set k = rendimiento.kpis %}
+
+      {# === KPIs del equipo === #}
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-card--accent">
+          <div class="kpi-label">Operaciones totales</div>
+          <div class="kpi-value">{{ k.total_ops }}</div>
+          <div class="kpi-extra">
+            <span><em>Getnet</em> {{ k.getnet_pct }}</span>
+            <span><em>Premios</em> {{ k.premios_pct }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Asistentes con operaciones</div>
+          <div class="kpi-value">{{ k.asistentes }}</div>
+          <div class="kpi-extra">
+            <span><em>Jornadas del periodo</em> {{ k.jornadas_periodo }}</span>
+            <span><em>Transacciones por asistente</em> {{ k.prom_por_asistente }}</span>
+            <span><em>Mediana</em> {{ k.mediana }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Promedio del equipo por jornada</div>
+          <div class="kpi-value">{{ k.prom_equipo }}</div>
+          <div class="kpi-extra">
+            <span><em>Mejor ritmo</em> {{ k.lider }} · {{ k.lider_prom }}</span>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Concentración</div>
+          <div class="kpi-value">{{ k.top3_pct }}</div>
+          <div class="kpi-extra">
+            <span><em>Top 3 del total</em></span>
+            <span><em>Top 1</em> {{ k.top1 }} · {{ k.top1_pct }}</span>
+          </div>
+        </div>
+      </div>
+
+      {# === Leyenda de cálculos === #}
+      <section class="legend-card">
+        <h3 class="legend-title">📒 Cómo se evalúa</h3>
+        <div class="legend-grid">
+          <div>
+            <strong>Qué se suma</strong>
+            <p>Las <em>operaciones</em> de Getnet y las <em>transacciones</em> de Premios (todos los tipos de pago) de cada asistente. Solo cantidades: los montos no son comparables entre módulos y quedan en cada uno.</p>
+          </div>
+          <div>
+            <strong>Jornadas</strong>
+            <p>Días en que el asistente tuvo al menos una operación en cualquiera de los dos módulos. Las jornadas del periodo cuentan días con operaciones en cualquiera.</p>
+          </div>
+          <div>
+            <strong>Prom./jornada e Índice</strong>
+            <p>Prom./jornada = operaciones ÷ jornadas. Índice = prom./jornada del asistente ÷ promedio del equipo × 100 (100 = igual al equipo; verde ≥ 110, rojo &lt; 90).</p>
+          </div>
+          <div>
+            <strong>Cobertura y Constancia</strong>
+            <p>Cobertura = % de las jornadas del periodo en que operó. Constancia = % de sus jornadas en que igualó o superó el promedio del equipo.</p>
+          </div>
+          <div>
+            <strong>Tendencia</strong>
+            {% if rendimiento.tendencia %}
+              <p>Variación de sus operaciones de <em>{{ rendimiento.tendencia.mes_ref }}</em> respecto de <em>{{ rendimiento.tendencia.mes_prev }}</em>. "nuevo" = sin operaciones el mes previo.</p>
+            {% else %}
+              <p>Variación entre los dos últimos meses del periodo. Con un solo mes filtrado no aplica.</p>
+            {% endif %}
+          </div>
+          <div>
+            <strong>Alcance</strong>
+            <p>Respeta los filtros de año, mes y nombre (solo asistente). Excluye a los asistentes inactivos de Configuración y las operaciones sin asistente.{% if rendimiento.fuentes|length < 2 %} <strong>Solo hay datos de {{ rendimiento.fuentes[0] }}.</strong>{% endif %}</p>
+          </div>
+        </div>
+      </section>
+
+      {# === Podio: mejor jornada combinada === #}
+      <section class="chart-card">
+        <h3>🏆 Top 3 · Record de operaciones en una jornada (Getnet + Premios)</h3>
+        <div class="info-note">
+          ℹ️ El día en que cada asistente sumó <em>más operaciones</em> entre ambos
+          módulos. En empate gana quien lo logró primero.
+        </div>
+        {% set medallas = ['🥇', '🥈', '🥉'] %}
+        {% set clases = ['oro', 'plata', 'bronce'] %}
+        <div class="podium">
+          {% for p in rendimiento.podio %}
+            <div class="podium-card podium-card--{{ clases[loop.index0] }}">
+              <div class="podium-medal">{{ medallas[loop.index0] }}</div>
+              <div class="podium-name">{{ p.nombre }}</div>
+              <div class="podium-ops">{{ p.ops }}</div>
+              <div class="podium-label">operaciones</div>
+              <div class="podium-date">{{ p.fecha }} · <span class="podium-mix">Getnet {{ p.getnet }} · Premios {{ p.premios }}</span></div>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {# === Gráficos Top 10 === #}
+      <div class="charts-row">
+        <section class="chart-card">
+          <h3>🏅 Top 10 · Operaciones <span class="badge badge--muted">Getnet + Premios</span></h3>
+          <div class="chart-box chart-box--tall"><canvas id="chart-top-mix"></canvas></div>
+        </section>
+        <section class="chart-card">
+          <h3>⚡ Top 10 · Promedio por jornada <span class="badge">min. {{ rendimiento.min_jornadas }} jornadas</span></h3>
+          {% if rendimiento.top_prom.labels %}
+            <div class="chart-box chart-box--tall"><canvas id="chart-top-prom"></canvas></div>
+          {% else %}
+            <div class="empty-state">Ningún asistente alcanza el mínimo de jornadas.</div>
+          {% endif %}
+        </section>
+      </div>
+
+      {# === Tabla de evaluación === #}
+      <section class="chart-card">
+        <h3>📋 Evaluación por asistente</h3>
+        <div class="info-note">
+          ℹ️ Ordenado por operaciones totales. Haz clic en un encabezado para
+          reordenar (por ejemplo, por <em>Índice</em> o <em>Constancia</em>).
+          <em>% Getnet</em> indica qué parte de sus operaciones vino de Getnet.
+        </div>
+
+        <div class="heatmap-scroll">
+          <table class="record-table rendimiento-table sortable-table" data-buscador>
+            <thead>
+              <tr>
+                <th class="rank">#</th>
+                <th>Asistente</th>
+                <th class="num">Total</th>
+                <th class="num">Getnet</th>
+                <th class="num">Premios</th>
+                <th class="num">% Getnet</th>
+                <th class="num">% total</th>
+                <th class="num">Jornadas</th>
+                <th class="num">Cobertura</th>
+                <th class="num">Prom./jornada</th>
+                <th class="num">Índice</th>
+                <th class="num">Constancia</th>
+                <th class="num">Mejor jornada</th>
+                <th class="num">Tendencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in rendimiento.filas %}
+                <tr>
+                  <td class="rank">{{ loop.index }}</td>
+                  <td>{{ f.nombre }}</td>
+                  <td class="num"><strong>{{ f.ops }}</strong></td>
+                  <td class="num muted">{{ f.getnet }}</td>
+                  <td class="num muted">{{ f.premios }}</td>
+                  <td class="num muted">{{ f.getnet_pct }}</td>
+                  <td class="num muted">{{ f.pct_total }}</td>
+                  <td class="num">{{ f.jornadas }}</td>
+                  <td class="num muted">{{ f.cobertura }}</td>
+                  <td class="num"><strong>{{ f.prom_jornada }}</strong></td>
+                  <td class="num indice {{ 'indice--alto' if f.indice >= 110 else ('indice--bajo' if f.indice < 90 else '') }}">{{ f.indice }}</td>
+                  <td class="num">{{ f.constancia }}</td>
+                  <td class="num" title="{{ f.mejor_fecha }} · Getnet {{ f.mejor_getnet }} · Premios {{ f.mejor_premios }}">{{ f.mejor_ops }}</td>
+                  {% if f.tendencia %}
+                    <td class="num delta delta--{{ f.tendencia.dir }}" data-sort="{{ '' if f.tendencia.pct == 'nuevo' else f.tendencia.pct }}">{{ f.tendencia.pct }}</td>
+                  {% else %}
+                    <td class="num muted" data-sort="">—</td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              {% set t = rendimiento.totales %}
+              <tr>
+                <th></th>
+                <th>Equipo</th>
+                <td class="num total-col">{{ t.ops }}</td>
+                <td class="num">{{ t.getnet }}</td>
+                <td class="num">{{ t.premios }}</td>
+                <td class="num">{{ t.getnet_pct }}</td>
+                <td class="num">100%</td>
+                <td class="num">{{ t.jornadas }}</td>
+                <td class="num">100%</td>
+                <td class="num total-col">{{ t.prom_jornada }}</td>
+                <td class="num">100</td>
+                <td></td>
+                <td></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      {# Datos para Chart.js (se leen desde charts.js) #}
+      <script id="getnet-data" type="application/json">
+        {{ {
+          "top_mix": rendimiento.top_mix,
+          "top_prom": rendimiento.top_prom
+        } | tojson }}
+      </script>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tables.js') }}"></script>
+  {% if rendimiento %}
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
+    <script data-cfasync="false" src="{{ url_for('static', filename='js/charts.js') }}"></script>
+  {% endif %}
+{% endblock %}

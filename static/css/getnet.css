@@ -506,6 +506,17 @@
   font-feature-settings: "tnum";
 }
 
+.podium-mix {
+  color: #8d8d8d;
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-feature-settings: "tnum";
+}
+
+.badge--muted {
+  background: #393939;
+  color: #c6c6c6;
+}
+
 .chart-box--tall {
   height: 340px;
 }

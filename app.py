@@ -5,6 +5,7 @@ from flask import Flask, render_template
 
 from config import Config
 from modules.analisis import analisis_bp
+from modules.asistentes import asistentes_bp
 from modules.auth import auth_bp
 from modules.coinin import coinin_bp
 from modules.coinin_cero import coinin_cero_bp
@@ -42,6 +43,7 @@ def create_app():
     app.register_blueprint(home_bp)
     app.register_blueprint(getnet_bp)
     app.register_blueprint(premios_bp)
+    app.register_blueprint(asistentes_bp)
     app.register_blueprint(comps_bp)
     app.register_blueprint(coinin_bp)
     app.register_blueprint(coinin_cero_bp)

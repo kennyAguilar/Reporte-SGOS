@@ -452,7 +452,38 @@ Jackpot HP / Progressive Jackpot HP) y el **monto HP** pagado.
 
 ---
 
-## 12. Pendiente
+## 12. Módulo Asistentes ✅ (rendimiento combinado)
+
+Entrada propia en el menú principal (entre Premios y Comps). Ruta `/asistentes`
+([modules/asistentes.py](modules/asistentes.py), [repositories/asistentes_repository.py](repositories/asistentes_repository.py)).
+Una sola vista que **suma por asistente las operaciones de Getnet y las
+transacciones de Premios** y aplica el mismo modelo de evaluación de las
+secciones 9.1 y 11.6.
+
+| Regla | Detalle |
+|---|---|
+| Qué se suma | Solo **cantidades**. Los montos de uno y otro módulo no son comparables, así que no se suman ni se muestran. |
+| Jornada trabajada | Día con al menos una operación en cualquiera de los dos módulos. |
+| Jornadas del periodo | Días con operaciones en cualquiera de los dos. |
+| Filtro Nombre | Solo `slot_attendant` (no cliente). |
+| Exclusiones | Inactivos de Configuración y operaciones sin asistente. |
+| Tablas faltantes | Si `premios` (o `getnet`) no existe, trabaja con la otra y lo avisa en la leyenda. |
+
+Una única consulta `UNION ALL` agrupada por (asistente, jornada) con el desglose
+por origen; el resto (jornadas, promedios, índice, constancia, tendencia, podio)
+se calcula en Python. Bloques de la vista:
+
+- KPIs: operaciones totales con % Getnet / % Premios, asistentes, promedio del
+  equipo por jornada, concentración Top 3.
+- Podio Top 3 de **mejor jornada combinada** (con desglose Getnet · Premios).
+- Top 10 por operaciones en **barras apiladas** (Getnet + Premios) y Top 10 por
+  prom./jornada (mín. 5 jornadas).
+- Tabla de evaluación con Total, Getnet, Premios, % Getnet, % total, Jornadas,
+  Cobertura, Prom./jornada, Índice, Constancia, Mejor jornada y Tendencia.
+
+---
+
+## 13. Pendiente
 
 - [ ] Módulo **COMPS** (mismo patrón que Getnet / Premios).
 - [ ] Módulo **CoinIn**.
