@@ -26,7 +26,7 @@ Aplicación web interna para procesar, analizar y visualizar reportes de operaci
 ├── modules/
 │   ├── auth.py                 # Blueprint: /login, /logout
 │   ├── home.py                 # Blueprint: / (resumen general)
-│   ├── getnet.py               # Blueprint: /getnet (dashboard, histórico, record)
+│   ├── getnet.py               # Blueprint: /getnet (dashboard, histórico, record, rendimiento)
 │   ├── premios.py              # Blueprint: /premios (dashboard, histórico, record)
 │   ├── upload.py               # Blueprint: /upload (carga de Excel Getnet y Premios)
 │   └── config.py               # Blueprint: /configuracion (admin — asistentes y usuarios)
@@ -147,9 +147,10 @@ La aplicación usa Neon.tech (PostgreSQL serverless). La tabla principal de usua
 | Login / Sesión | ✅ Implementado |
 | Home / Resumen KPIs | ✅ Implementado |
 | Getnet — Carga de Excel | ✅ Implementado |
-| Getnet — Dashboard (KPIs + gráficos + mapa de calor + donut formas de pago) | ✅ Implementado |
-| Getnet — Histórico | ✅ Implementado |
-| Getnet — Record Asistentes (podio, resumen, transacciones, total acumulado) | ✅ Implementado |
+| Getnet — Dashboard (KPIs con Δ mensual + gráficos + mapa de calor + donut formas de pago) | ✅ Implementado |
+| Getnet — Histórico (resumen mensual con Δ, operaciones por hora) | ✅ Implementado |
+| Getnet — Record Asistentes (podio, resumen operativo, transacciones, total acumulado) | ✅ Implementado |
+| Getnet — Rendimiento (evaluación por asistente: prom./jornada, índice vs equipo, tendencia) | ✅ Implementado |
 | Configuración (gestión de asistentes y usuarios — solo admin) | ✅ Implementado |
 | Premios — Carga de Excel | ✅ Implementado |
 | Premios — Dashboard (KPIs + 5 gráficos + filtro por tipo de pago HP) | ✅ Implementado |

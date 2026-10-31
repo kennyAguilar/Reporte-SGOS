@@ -137,6 +137,10 @@
   margin-bottom: 16px;
 }
 
+.info-note a {
+  color: #d4af37;
+}
+
 /* Variante de advertencia: datos incompletos o que requieren una acción. */
 .info-note--warn {
   background: #33291c;
@@ -455,5 +459,88 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+/* --- Variaciones (Δ vs mes anterior) en KPIs y tablas --- */
+.kpi-card .kpi-delta {
+  margin-top: 6px;
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.kpi-card .kpi-delta em {
+  font-style: normal;
+  font-weight: 400;
+  color: #8d8d8d;
+  margin-left: 4px;
+}
+
+.kpi-delta--up,
+.record-table td.delta--up {
+  color: #42be65;
+}
+
+.kpi-delta--down,
+.record-table td.delta--down {
+  color: #ff8389;
+}
+
+.kpi-delta--flat,
+.record-table td.delta--flat {
+  color: #c6c6c6;
+}
+
+.kpi-delta--up::before { content: "▲ "; }
+.kpi-delta--down::before { content: "▼ "; }
+
+.record-table td.muted {
+  color: #a8a8a8;
+}
+
+/* --- Rendimiento --- */
+.podium-monto {
+  color: #d4af37;
+  font-family: "IBM Plex Mono", "Consolas", ui-monospace, monospace;
+  font-feature-settings: "tnum";
+}
+
+.chart-box--tall {
+  height: 340px;
+}
+
+/* Tabla ancha (14 columnas): tipografía y padding compactos para que entre
+   en 1600px sin scroll horizontal. */
+.rendimiento-table {
+  font-size: 12px;
+}
+
+.rendimiento-table th,
+.rendimiento-table td {
+  padding: 6px 6px;
+}
+
+.rendimiento-table thead th.th-sortable {
+  padding-right: 16px;
+}
+
+.rendimiento-table td.indice {
+  font-weight: 600;
+}
+
+.rendimiento-table td.indice--alto {
+  color: #42be65;
+}
+
+.rendimiento-table td.indice--bajo {
+  color: #ff8389;
+}
+
+.rendimiento-table thead th {
+  position: sticky;
+  top: 0;
+  background: #262626;
+  z-index: 1;
 }
 

@@ -202,6 +202,26 @@
     );
   }
 
+  // --- Rendimiento de asistentes (Getnet): Top 10 en barras horizontales ---
+  if (datos && datos.top_ops) {
+    crearBarrasH(
+      "chart-top-ops",
+      datos.top_ops.labels,
+      datos.top_ops.valores,
+      ORO,
+      "Transacciones"
+    );
+  }
+  if (datos && datos.top_prom && datos.top_prom.labels.length) {
+    crearBarrasH(
+      "chart-top-prom",
+      datos.top_prom.labels,
+      datos.top_prom.valores,
+      AZUL,
+      "Promedio por jornada"
+    );
+  }
+
   // ===================================================================
   // Dashboard de Comps. Datos embebidos en <script id="comps-data">.
   // Reutiliza las mismas funciones de gráficos; el donut usa `valor`.

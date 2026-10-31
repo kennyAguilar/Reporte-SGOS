@@ -7,11 +7,25 @@
 
   // Convierte el texto de una celda a número comparable.
   // "$13.262.650.138" -> 13262650138 ; "1.484" -> 1484 ; "12,5%" -> 12.5
+  // "2026-09-05" (data-sort ISO) -> 20260905
   function aNumero(texto) {
-    const limpio = texto.replace(/[^\d,-]/g, "").replace(",", ".");
+    // Solo se conserva un signo menos inicial; los guiones internos (fechas
+    // ISO) se descartan para que no corten el número.
+    const limpio = texto
+      .replace(/[^\d,-]/g, "")
+      .replace(/(?!^)-/g, "")
+      .replace(",", ".");
     if (!limpio || limpio === "-") return null;
     const n = parseFloat(limpio);
     return isNaN(n) ? null : n;
+  }
+
+  // Valor de una celda para ordenar. Si trae data-sort (fechas ISO, números
+  // sin formato) se usa ese; si no, el texto visible.
+  function valorCelda(celda) {
+    if (!celda) return "";
+    if (celda.dataset && celda.dataset.sort !== undefined) return celda.dataset.sort;
+    return celda.textContent.trim();
   }
 
   // Una columna es numérica si TODAS sus celdas con contenido lo son.
@@ -20,8 +34,8 @@
     for (const fila of filas) {
       const celda = fila.cells[indice];
       if (!celda) continue;
-      const texto = celda.textContent.trim();
-      if (!texto) continue;
+      const texto = valorCelda(celda);
+      if (!texto || texto === "—" || texto === "·") continue;
       conDatos++;
       if (aNumero(texto) === null) return false;
     }
@@ -35,8 +49,8 @@
     const numerica = columnaEsNumerica(filas, indice);
 
     filas.sort(function (a, b) {
-      const ta = (a.cells[indice] ? a.cells[indice].textContent : "").trim();
-      const tb = (b.cells[indice] ? b.cells[indice].textContent : "").trim();
+      const ta = valorCelda(a.cells[indice]);
+      const tb = valorCelda(b.cells[indice]);
 
       let resultado;
       if (numerica) {

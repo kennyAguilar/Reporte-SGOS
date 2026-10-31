@@ -17,15 +17,7 @@
   {% include "partials/_filters.html" with context %}
 
   <main class="dashboard-main">
-    {# Sub-menú del módulo Getnet #}
-    <nav class="submenu">
-      <a href="{{ url_for('getnet.dashboard') }}"
-         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
-      <a href="{{ url_for('getnet.historico') }}"
-         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
-      <a href="{{ url_for('getnet.record_asistentes') }}"
-         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
-    </nav>
+    {% include "getnet/_submenu.html" %}
 
     <div class="module-head">
       <div class="module-eyebrow">Getnet</div>
@@ -34,10 +26,17 @@
 
     {# KPIs rápidos #}
     {% if kpis %}
+      {% set var = kpis.variacion %}
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-label">Operaciones</div>
           <div class="kpi-value">{{ kpis.total_ops }}</div>
+          {% if var and var.ops %}
+            <div class="kpi-delta kpi-delta--{{ var.ops.dir }}"
+                 title="{{ var.mes_ref }} vs {{ var.mes_prev }}">
+              {{ var.ops.pct }} <em>vs {{ var.mes_prev }}</em>
+            </div>
+          {% endif %}
           <div class="kpi-extra">
             <span><em>Días contados</em> {{ kpis.dias }}</span>
             <span><em>Promedio x día</em> {{ kpis.promedio_ops }}</span>
@@ -46,6 +45,12 @@
         <div class="kpi-card kpi-card--accent">
           <div class="kpi-label">Monto total</div>
           <div class="kpi-value financiero">{{ kpis.monto_total }}</div>
+          {% if var and var.monto %}
+            <div class="kpi-delta kpi-delta--{{ var.monto.dir }}"
+                 title="{{ var.mes_ref }} vs {{ var.mes_prev }}">
+              {{ var.monto.pct }} <em>vs {{ var.mes_prev }}</em>
+            </div>
+          {% endif %}
           <div class="kpi-extra">
             <span><em>Ticket promedio</em> {{ kpis.ticket }}</span>
           </div>
@@ -102,10 +107,14 @@
           <strong>Mapa de calor</strong>
           <p>Cada celda Día × Hora divide el total de esa franja entre la cantidad de jornadas de ese día de la semana.</p>
         </div>
+        <div>
+          <strong>Variación mensual</strong>
+          <p>Compara el último mes con datos contra el mes calendario anterior (aunque el filtro de mes lo deje fuera). Si el último mes está incompleto, la variación es parcial.</p>
+        </div>
       </div>
     </section>
 
-    {% if not resumen %}
+    {% if not kpis %}
       <div class="empty-state">No hay datos de Getnet para este filtro. Carga un archivo o ajusta los filtros.</div>
     {% else %}
       {# Fila 1: por mes #}
@@ -208,7 +217,7 @@
 
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/filters.js') }}"></script>
-  {% if resumen %}
+  {% if kpis %}
     <script data-cfasync="false" src="{{ url_for('static', filename='js/vendor/chart.umd.min.js') }}"></script>
     <script data-cfasync="false" src="{{ url_for('static', filename='js/charts.js') }}"></script>
   {% endif %}

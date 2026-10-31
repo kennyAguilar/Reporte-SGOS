@@ -1,7 +1,11 @@
-"""Módulo Getnet — sub-menú Dashboard | Histórico | Record Asistentes.
+"""Módulo Getnet — sub-menú Dashboard | Histórico | Record Asistentes | Rendimiento.
 
-Por ahora solo el Dashboard está implementado. Histórico y Record Asistentes
-quedan como vistas placeholder, listas para construir más adelante.
+- Dashboard:         KPIs + gráficos por mes, por hora y mapa de calor.
+- Histórico:         resumen mensual y detalle por hora.
+- Record Asistentes: lo OPERATIVO por persona (podio de records, conteos por
+                     mes/año).
+- Rendimiento:       la EVALUACIÓN por persona (promedio por jornada, índice
+                     vs equipo, cobertura, constancia, tendencia).
 
 El panel de filtros es el mismo que usa el Home, pero su formulario apunta a la
 ruta de este módulo, de modo que al aplicar filtros (o pulsar "Todos") el usuario
@@ -36,14 +40,23 @@ def _safe(func, *args, **kwargs):
 
 
 def _contexto_filtros():
-    """Lee los filtros de la URL y arma el contexto común de las vistas Getnet."""
+    """Lee los filtros de la URL y arma el contexto común de las vistas Getnet.
+
+    El selector de año ofrece los años que realmente tienen datos; si la base
+    aún está vacía (o falla), cae a los últimos 6 años como antes.
+    """
     anio = request.args.get("anio") or None
     mes = request.args.get("mes") or None
     nombre = (request.args.get("nombre") or "").strip() or None
     filas_totales = request.args.get("filas_totales") == "on"
 
-    anio_actual = datetime.now().year
-    anios = list(range(anio_actual, anio_actual - 6, -1))
+    anios = _safe(getnet_repository.get_anios_disponibles) or []
+    if not anios:
+        anio_actual = datetime.now().year
+        anios = list(range(anio_actual, anio_actual - 6, -1))
+    # Mantiene visible un año pedido por URL aunque no tenga datos.
+    if anio and anio.isdigit() and int(anio) not in anios:
+        anios = sorted(anios + [int(anio)], reverse=True)
 
     filtros = {
         "anio": anio,
@@ -60,7 +73,6 @@ def dashboard():
     """Dashboard de Getnet: KPIs + gráficos por mes, por hora y mapa de calor."""
     anio, mes, nombre, filtros, anios = _contexto_filtros()
 
-    resumen = _safe(getnet_repository.get_resumen, anio, mes, nombre)
     kpis = _safe(getnet_repository.get_kpis_dashboard, anio, mes, nombre)
     ops_mes = _safe(getnet_repository.get_operaciones_por_mes, anio, mes, nombre)
     montos_mes = _safe(getnet_repository.get_montos_por_mes, anio, mes, nombre)
@@ -72,7 +84,6 @@ def dashboard():
         user=current_user(),
         active="getnet",
         seccion="dashboard",
-        resumen=resumen,
         kpis=kpis,
         ops_mes=ops_mes,
         montos_mes=montos_mes,
@@ -116,8 +127,9 @@ def record_asistentes():
     anio, mes, nombre, filtros, anios = _contexto_filtros()
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
 
-    record = _safe(getnet_repository.get_record_jornadas, anio, mes, nombre) or []
     resumen_asist = _safe(getnet_repository.get_resumen_asistentes, anio, mes, nombre) or []
+    # El podio sale del mismo resumen: una sola pasada por la tabla.
+    record = getnet_repository.ordenar_por_record(resumen_asist)
     trans_mes = _safe(getnet_repository.get_transacciones_mes_anio, anio, mes, nombre) or []
     total_anio = _safe(getnet_repository.get_total_por_anio, anio, mes, nombre)
 
@@ -129,8 +141,31 @@ def record_asistentes():
         podio=record[:3],
         record_resto=record[3:],
         resumen_asist=resumen_asist,
+        total_ops=sum(r["total"] for r in resumen_asist),
         trans_mes=trans_mes,
         total_anio=total_anio,
+        ultimo_archivo=ultimo_archivo,
+        filtros=filtros,
+        anios=anios,
+        meses=MESES,
+    )
+
+
+@getnet_bp.route("/rendimiento")
+@login_required
+def rendimiento():
+    """Evaluación de desempeño por asistente (operaciones normalizadas por jornada)."""
+    anio, mes, nombre, filtros, anios = _contexto_filtros()
+    ultimo_archivo = _safe(upload_repository.get_ultimo_archivo)
+
+    rendimiento = _safe(getnet_repository.get_rendimiento_asistentes, anio, mes, nombre)
+
+    return render_template(
+        "getnet/rendimiento.html",
+        user=current_user(),
+        active="getnet",
+        seccion="rendimiento",
+        rendimiento=rendimiento,
         ultimo_archivo=ultimo_archivo,
         filtros=filtros,
         anios=anios,

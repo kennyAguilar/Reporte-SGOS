@@ -3,12 +3,15 @@
 Columnas reales: id, id_unico (unique), jornada (date), fecha (timestamp),
 monto (integer), slot_attendant, forma_pago, created_at.
 """
-from datetime import datetime
+from datetime import datetime, timedelta
+import unicodedata
 
 from psycopg2.extras import execute_values
 
 from core.database import get_connection
-from core.formato import fecha_corta, fecha_hora, mes_anio_es, mes_ingles, miles, pesos
+from core.formato import (
+    fecha_corta, fecha_hora, mes_anio_es, mes_ingles, miles, pesos, porcentaje, variacion,
+)
 
 TABLE = "getnet"
 
@@ -20,6 +23,33 @@ _FILTRO_ACTIVOS = (
     "slot_attendant NOT IN "
     "(SELECT nombre FROM slot_attendants WHERE activo = false)"
 )
+
+# Operaciones sin asistente asignado (celda vacía en el Excel). Se excluyen
+# solo de las métricas POR asistente; los totales del dashboard las incluyen.
+_FILTRO_CON_ASISTENTE = "NULLIF(TRIM(slot_attendant), '') IS NOT NULL"
+
+# Etiquetas canónicas de forma de pago. El Excel trae variantes sin tilde o en
+# inglés ("Debito", "DEBIT"); aquí se unifican para la visualización.
+_FORMAS_CANON = {
+    "debito": "Débito", "debit": "Débito", "td": "Débito",
+    "credito": "Crédito", "credit": "Crédito", "tc": "Crédito",
+}
+
+
+def _sin_tildes(texto):
+    return unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
+
+
+def etiqueta_forma(valor):
+    """Normaliza la forma de pago para mostrarla: 'debito' -> 'Débito'."""
+    texto = (valor or "").strip()
+    if not texto:
+        return "Sin especificar"
+    return _FORMAS_CANON.get(_sin_tildes(texto).lower(), texto)
+
+
+def es_debito(valor):
+    return etiqueta_forma(valor) == "Débito"
 
 
 def insertar_filas(filas):
@@ -83,19 +113,7 @@ def insertar_filas(filas):
 
 def get_resumen(anio=None, mes=None, nombre=None):
     """KPIs del módulo Getnet o None si no hay datos en el filtro."""
-    filtros, params = [], []
-    if anio:
-        filtros.append("EXTRACT(YEAR FROM jornada) = %s")
-        params.append(int(anio))
-    if mes:
-        filtros.append("EXTRACT(MONTH FROM jornada) = %s")
-        params.append(int(mes))
-    if nombre:
-        filtros.append("slot_attendant ILIKE %s")
-        params.append(f"%{nombre}%")
-    filtros.append(_FILTRO_ACTIVOS)
-
-    where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
+    where, params = _where(anio, mes, nombre)
 
     conn = get_connection()
     try:
@@ -164,11 +182,12 @@ DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", 
 _DOW_A_INDICE = {1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6}
 
 
-def _where(anio=None, mes=None, nombre=None):
+def _where(anio=None, mes=None, nombre=None, solo_con_asistente=False):
     """Arma la cláusula WHERE de filtros reutilizable para los gráficos.
 
     Devuelve (where_sql, params). El filtro de año y mes usa `jornada`; el de
-    nombre busca en `slot_attendant`. Si no hay filtros, where_sql es "".
+    nombre busca en `slot_attendant`. Con `solo_con_asistente=True` se dejan
+    fuera las operaciones sin asistente (para rankings por persona).
     """
     filtros, params = [], []
     if anio:
@@ -181,8 +200,61 @@ def _where(anio=None, mes=None, nombre=None):
         filtros.append("slot_attendant ILIKE %s")
         params.append(f"%{nombre}%")
     filtros.append(_FILTRO_ACTIVOS)
+    if solo_con_asistente:
+        filtros.append(_FILTRO_CON_ASISTENTE)
     where = ("WHERE " + " AND ".join(filtros)) if filtros else ""
     return where, params
+
+
+def get_anios_disponibles():
+    """Años con operaciones cargadas, de más reciente a más antiguo."""
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"SELECT DISTINCT EXTRACT(YEAR FROM jornada)::int AS anio "
+                f"FROM {TABLE} ORDER BY 1 DESC"
+            )
+            return [int(f["anio"]) for f in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def _variacion_mensual(cur, nombre, max_jornada):
+    """Compara el último mes con datos contra el mes calendario anterior.
+
+    Ignora el filtro de mes (si no, el mes anterior nunca entraría) pero respeta
+    nombre y activos. Devuelve {"ops": variacion, "monto": variacion,
+    "mes_ref": "Septiembre 2026", "mes_prev": "Agosto 2026"} o None.
+    """
+    if not max_jornada:
+        return None
+    mes_ref = max_jornada.replace(day=1)
+    mes_prev = (mes_ref - timedelta(days=1)).replace(day=1)
+
+    where, params = _where(None, None, nombre)
+    cur.execute(
+        f"""
+        SELECT DATE_TRUNC('month', jornada)::date AS mes,
+               COUNT(*)   AS ops,
+               SUM(monto) AS monto
+        FROM {TABLE}
+        {where} AND DATE_TRUNC('month', jornada)::date IN (%s, %s)
+        GROUP BY 1
+        """,
+        params + [mes_ref, mes_prev],
+    )
+    por_mes = {f["mes"]: f for f in cur.fetchall()}
+    actual = por_mes.get(mes_ref)
+    anterior = por_mes.get(mes_prev)
+    if not actual or not anterior:
+        return None
+    return {
+        "ops": variacion(int(actual["ops"]), int(anterior["ops"])),
+        "monto": variacion(int(actual["monto"] or 0), int(anterior["monto"] or 0)),
+        "mes_ref": mes_anio_es(mes_ref),
+        "mes_prev": mes_anio_es(mes_prev),
+    }
 
 
 # Colores de las formas de pago para el donut (consistentes con DESIGN.md).
@@ -197,6 +269,7 @@ def get_kpis_dashboard(anio=None, mes=None, nombre=None):
         - monto_total, ticket
         - hora_pico ("HH:00"), ops_pico_prom
         - formas: [{"label", "ops", "monto", "pct", "color"}, ...] para el donut
+        - variacion: {"ops", "monto", "mes_ref", "mes_prev"} último mes vs anterior
     o None si no hay datos en el filtro. Los promedios usan la cantidad de
     jornadas únicas (días contados) como divisor.
     """
@@ -208,7 +281,8 @@ def get_kpis_dashboard(anio=None, mes=None, nombre=None):
                 f"""
                 SELECT COUNT(*)                AS total_ops,
                        COUNT(DISTINCT jornada) AS dias,
-                       SUM(monto)              AS monto_total
+                       SUM(monto)              AS monto_total,
+                       MAX(jornada)            AS max_jornada
                 FROM {TABLE}
                 {where}
                 """,
@@ -220,6 +294,7 @@ def get_kpis_dashboard(anio=None, mes=None, nombre=None):
             if not total_ops or not dias:
                 return None
             monto_total = int(base.get("monto_total") or 0)
+            variacion_mes = _variacion_mensual(cur, nombre, base.get("max_jornada"))
 
             # Hora pico: la hora con más operaciones (la hora sale de `fecha`).
             cur.execute(
@@ -256,15 +331,24 @@ def get_kpis_dashboard(anio=None, mes=None, nombre=None):
     ops_pico = int(pico.get("ops") or 0)
     hora_pico = pico.get("hora")
 
+    # Se agrupa por etiqueta canónica: "Debito" y "Débito" suman juntas.
+    acumulado = {}
+    for f in filas_forma:
+        etiqueta = etiqueta_forma(f["forma"])
+        acc = acumulado.setdefault(etiqueta, {"ops": 0, "monto": 0})
+        acc["ops"] += int(f["ops"])
+        acc["monto"] += int(f["monto"] or 0)
+
     formas = []
-    for i, f in enumerate(filas_forma):
-        ops = int(f["ops"])
+    for i, (etiqueta, acc) in enumerate(
+        sorted(acumulado.items(), key=lambda kv: kv[1]["ops"], reverse=True)
+    ):
         formas.append(
             {
-                "label": f["forma"],
-                "ops": ops,
-                "monto": int(f["monto"] or 0),
-                "pct": round(ops * 100 / total_ops, 1),
+                "label": etiqueta,
+                "ops": acc["ops"],
+                "monto": acc["monto"],
+                "pct": round(acc["ops"] * 100 / total_ops, 1),
                 "color": _COLORES_FORMA[i % len(_COLORES_FORMA)],
             }
         )
@@ -278,6 +362,7 @@ def get_kpis_dashboard(anio=None, mes=None, nombre=None):
         "hora_pico": f"{hora_pico:02d}:00" if hora_pico is not None else "—",
         "ops_pico_prom": miles(round(ops_pico / dias)),
         "formas": formas,
+        "variacion": variacion_mes,
     }
 
 
@@ -429,19 +514,27 @@ def get_resumen_mensual(anio=None, mes=None, nombre=None):
     if not filas:
         return None
 
+    # Variación contra el mes anterior en la lista (las filas vienen DESC, así
+    # que el "anterior" cronológico es el siguiente elemento).
     out = []
     total_ops = total_monto = 0
-    for f in filas:
+    for i, f in enumerate(filas):
         ops = int(f["ops"])
         monto = int(f["monto"] or 0)
         total_ops += ops
         total_monto += monto
+        prev = filas[i + 1] if i + 1 < len(filas) else None
+        es_consecutivo = prev is not None and (
+            (f["mes"].year - prev["mes"].year) * 12 + f["mes"].month - prev["mes"].month == 1
+        )
         out.append(
             {
                 "mes": mes_anio_es(f["mes"]),
                 "ops": miles(ops),
                 "monto": pesos(monto),
                 "ticket": pesos(round(monto / ops)) if ops else pesos(0),
+                "delta_ops": variacion(ops, int(prev["ops"])) if es_consecutivo else None,
+                "delta_monto": variacion(monto, int(prev["monto"] or 0)) if es_consecutivo else None,
             }
         )
     return {
@@ -621,166 +714,168 @@ def get_heatmap_dia_hora(anio=None, mes=None, nombre=None):
 
 
 # ---------------------------------------------------------------------------
-# RECORD ASISTENTES — métricas por slot attendant
+# RECORD ASISTENTES — métricas operativas por slot attendant
 # ---------------------------------------------------------------------------
 #
-# Todas estas funciones reutilizan _where() (que aplica los filtros de año, mes
-# y nombre, y excluye a los slot attendants marcados como inactivos en
-# Configuración). Así el filtro del header influye en toda la sección.
+# Todas estas funciones usan _where(..., solo_con_asistente=True): aplican los
+# filtros de año, mes y nombre, excluyen a los inactivos de Configuración y
+# dejan fuera las operaciones sin asistente asignado.
+#
+# Reglas de desempate (para que el resultado sea siempre el mismo):
+#   - Mejor jornada: más operaciones; si empatan, la jornada más reciente.
+#   - Franja top:    más operaciones; si empatan, la hora más temprana en el
+#                    orden de Jornada (10 → 08).
+#   - Rankings:      más operaciones; si empatan, nombre alfabético.
+
+_MESES_ABBR = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+               "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+_ORDEN_HORA = {h: i for i, h in enumerate(HORAS_JORNADA)}
 
 
-def get_record_jornadas(anio=None, mes=None, nombre=None):
-    """Record de transacciones en UNA jornada por cada asistente.
+def _consultar_por_asistente(cur, where, params):
+    """Ejecuta las tres consultas base por asistente y devuelve dicts crudos.
 
-    Para cada slot attendant busca la jornada donde hizo más transacciones (su
-    mejor día) y devuelve esos records ordenados de mayor a menor.
-
-    Devuelve una lista de dicts {nombre, ops, fecha} o [] si no hay datos. El
-    `fecha` ya viene formateado como dd/mm/aaaa.
+    Devuelve (base, por_jornada, por_hora):
+      - base[nombre]        = {"total", "monto", "jornadas"}
+      - por_jornada[nombre] = [(jornada, ops, monto), ...]
+      - por_hora[nombre]    = {hora: ops}
     """
-    where, params = _where(anio, mes, nombre)
-    conn = get_connection()
-    try:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"""
-                SELECT slot_attendant AS nombre, jornada, COUNT(*) AS ops
-                FROM {TABLE}
-                {where}
-                GROUP BY slot_attendant, jornada
-                """,
-                params,
-            )
-            filas = cur.fetchall()
-    finally:
-        conn.close()
+    cur.execute(
+        f"""
+        SELECT slot_attendant          AS nombre,
+               COUNT(*)                AS total,
+               SUM(monto)              AS monto,
+               COUNT(DISTINCT jornada) AS jornadas
+        FROM {TABLE}
+        {where}
+        GROUP BY slot_attendant
+        """,
+        params,
+    )
+    base = {f["nombre"]: dict(f) for f in cur.fetchall()}
+    if not base:
+        return {}, {}, {}
 
-    if not filas:
-        return []
+    cur.execute(
+        f"""
+        SELECT slot_attendant AS nombre, jornada, COUNT(*) AS ops, SUM(monto) AS monto
+        FROM {TABLE}
+        {where}
+        GROUP BY slot_attendant, jornada
+        """,
+        params,
+    )
+    por_jornada = {}
+    for f in cur.fetchall():
+        por_jornada.setdefault(f["nombre"], []).append(
+            (f["jornada"], int(f["ops"]), int(f["monto"] or 0))
+        )
 
-    # Por cada asistente nos quedamos con su jornada de más operaciones.
-    mejor = {}
-    for f in filas:
-        nom = f["nombre"]
-        actual = mejor.get(nom)
-        if actual is None or f["ops"] > actual["ops"]:
-            mejor[nom] = {"ops": int(f["ops"]), "jornada": f["jornada"]}
+    cur.execute(
+        f"""
+        SELECT slot_attendant AS nombre,
+               EXTRACT(HOUR FROM fecha)::int AS hora,
+               COUNT(*)                       AS ops
+        FROM {TABLE}
+        {where}
+        GROUP BY slot_attendant, hora
+        """,
+        params,
+    )
+    por_hora = {}
+    for f in cur.fetchall():
+        por_hora.setdefault(f["nombre"], {})[f["hora"]] = int(f["ops"])
 
-    records = [
-        {"nombre": nom, "ops": v["ops"], "fecha": fecha_corta(v["jornada"])}
-        for nom, v in mejor.items()
-    ]
-    records.sort(key=lambda r: r["ops"], reverse=True)
-    return records
+    return base, por_jornada, por_hora
+
+
+def _mejor_jornada(jornadas):
+    """(jornada, ops, monto) con más ops; empate → la más reciente."""
+    if not jornadas:
+        return None
+    return max(jornadas, key=lambda j: (j[1], j[0]))
+
+
+def _franja_top(horas):
+    """Hora con más ops; empate → la más temprana en el orden de Jornada."""
+    if not horas:
+        return None
+    return min(horas.items(), key=lambda kv: (-kv[1], _ORDEN_HORA.get(kv[0], 99)))[0]
 
 
 def get_resumen_asistentes(anio=None, mes=None, nombre=None):
-    """Resumen de métricas por asistente, ordenado por total de transacciones.
+    """Resumen operativo por asistente, ordenado por total de transacciones.
 
-    Para cada slot attendant calcula:
-      - total      : cantidad de transacciones
-      - ticket      : ticket promedio = SUM(monto) / COUNT(*) (monto por operación)
-      - franja      : hora del día con más transacciones ("HH:00")
-      - mejor_ops   : nº de transacciones de su mejor jornada
-      - mejor_fecha : fecha de esa mejor jornada (dd/mm/aaaa)
+    Cada fila trae:
+      - nombre, total (int), jornadas (int), prom_jornada (float, 1 decimal)
+      - franja ("HH:00")
+      - mejor_ops (int), mejor_monto ("$1.234"), mejor_fecha (dd/mm/aaaa),
+        mejor_fecha_iso (para ordenar en la tabla)
+    Devuelve una lista o [].
 
-    Devuelve una lista de dicts o [].
+    El podio de "Record en una jornada" se deriva de estas mismas filas (ver
+    `ordenar_por_record`), así la página hace una sola pasada por la tabla.
     """
-    where, params = _where(anio, mes, nombre)
+    where, params = _where(anio, mes, nombre, solo_con_asistente=True)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            # Totales y ticket promedio por asistente.
-            cur.execute(
-                f"""
-                SELECT slot_attendant AS nombre,
-                       COUNT(*)        AS total,
-                       SUM(monto)      AS monto
-                FROM {TABLE}
-                {where}
-                GROUP BY slot_attendant
-                """,
-                params,
-            )
-            base = {f["nombre"]: dict(f) for f in cur.fetchall()}
-            if not base:
-                return []
-
-            # Hora con más transacciones por asistente.
-            cur.execute(
-                f"""
-                SELECT slot_attendant AS nombre,
-                       EXTRACT(HOUR FROM fecha)::int AS hora,
-                       COUNT(*)                       AS ops
-                FROM {TABLE}
-                {where}
-                GROUP BY slot_attendant, hora
-                """,
-                params,
-            )
-            franja = {}
-            for f in cur.fetchall():
-                nom = f["nombre"]
-                actual = franja.get(nom)
-                if actual is None or f["ops"] > actual["ops"]:
-                    franja[nom] = {"hora": f["hora"], "ops": int(f["ops"])}
-
-            # Mejor jornada por asistente (nº de ops y fecha).
-            cur.execute(
-                f"""
-                SELECT slot_attendant AS nombre, jornada, COUNT(*) AS ops
-                FROM {TABLE}
-                {where}
-                GROUP BY slot_attendant, jornada
-                """,
-                params,
-            )
-            mejor = {}
-            for f in cur.fetchall():
-                nom = f["nombre"]
-                actual = mejor.get(nom)
-                if actual is None or f["ops"] > actual["ops"]:
-                    mejor[nom] = {"ops": int(f["ops"]), "jornada": f["jornada"]}
+            base, por_jornada, por_hora = _consultar_por_asistente(cur, where, params)
     finally:
         conn.close()
 
     resultado = []
     for nom, b in base.items():
         total = int(b["total"])
-        monto = int(b["monto"] or 0)
-        ticket = round(monto / total) if total else 0
-        fr = franja.get(nom)
-        mj = mejor.get(nom)
+        jornadas = int(b["jornadas"] or 0)
+        mejor = _mejor_jornada(por_jornada.get(nom))
+        franja = _franja_top(por_hora.get(nom))
         resultado.append(
             {
                 "nombre": nom,
                 "total": total,
-                "ticket": pesos(ticket),
-                "franja": f"{fr['hora']:02d}:00" if fr else "—",
-                "mejor_ops": mj["ops"] if mj else 0,
-                "mejor_fecha": fecha_corta(mj["jornada"]) if mj else "—",
+                "jornadas": jornadas,
+                "prom_jornada": round(total / jornadas, 1) if jornadas else 0.0,
+                "franja": f"{franja:02d}:00" if franja is not None else "—",
+                "mejor_ops": mejor[1] if mejor else 0,
+                "mejor_monto": pesos(mejor[2]) if mejor else pesos(0),
+                "mejor_fecha": fecha_corta(mejor[0]) if mejor else "—",
+                "mejor_fecha_iso": mejor[0].isoformat() if mejor else "",
             }
         )
-    resultado.sort(key=lambda r: r["total"], reverse=True)
+    resultado.sort(key=lambda r: (-r["total"], r["nombre"]))
     return resultado
+
+
+def ordenar_por_record(resumen):
+    """Ranking de records en una jornada a partir del resumen por asistente.
+
+    Más operaciones primero; en empate gana quien lo logró antes (fecha más
+    antigua) y luego el nombre.
+    """
+    return sorted(
+        resumen,
+        key=lambda r: (-r["mejor_ops"], r["mejor_fecha_iso"], r["nombre"]),
+    )
 
 
 def get_transacciones_mes_anio(anio=None, mes=None, nombre=None):
     """Transacciones por mes de cada asistente, separadas por año.
 
-    Devuelve una lista de años (de mayor a menor), cada uno con su tabla:
+    Devuelve una lista de años (de mayor a menor), cada uno con su tabla. Solo
+    aparecen las columnas de los meses que tienen datos en ese año:
         [
           {
             "anio": 2026,
-            "meses": ["Ene", ..., "Dic"],
-            "filas": [{"nombre": ..., "valores": [12 ints], "total": N}, ...],
-            "totales": [12 ints],   # total por mes (pie de tabla)
-            "total": N              # total del año
+            "meses": ["Ene", "Feb", ...],
+            "filas": [{"nombre": ..., "valores": [...], "total": N}, ...],
+            "totales": [...],   # total por mes (pie de tabla)
+            "total": N          # total del año
           }, ...
         ]
     o [] si no hay datos. Las filas se ordenan por total del año desc.
     """
-    where, params = _where(anio, mes, nombre)
+    where, params = _where(anio, mes, nombre, solo_con_asistente=True)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -803,29 +898,26 @@ def get_transacciones_mes_anio(anio=None, mes=None, nombre=None):
     if not filas:
         return []
 
-    meses_abbr = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
-                  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
-
-    # estructura: anios[anio][nombre] = [12 ints]
+    # estructura: anios[anio][nombre] = {mes: ops}
     anios = {}
     for f in filas:
         a = anios.setdefault(f["anio"], {})
-        fila = a.setdefault(f["nombre"], [0] * 12)
-        fila[f["mes"] - 1] = int(f["ops"])
+        a.setdefault(f["nombre"], {})[f["mes"]] = int(f["ops"])
 
     resultado = []
     for a in sorted(anios.keys(), reverse=True):
         asistentes = anios[a]
-        filas_out = [
-            {"nombre": nom, "valores": vals, "total": sum(vals)}
-            for nom, vals in asistentes.items()
-        ]
-        filas_out.sort(key=lambda r: r["total"], reverse=True)
-        totales = [sum(asistentes[nom][i] for nom in asistentes) for i in range(12)]
+        meses_con_datos = sorted({m for vals in asistentes.values() for m in vals})
+        filas_out = []
+        for nom, vals in asistentes.items():
+            valores = [vals.get(m, 0) for m in meses_con_datos]
+            filas_out.append({"nombre": nom, "valores": valores, "total": sum(valores)})
+        filas_out.sort(key=lambda r: (-r["total"], r["nombre"]))
+        totales = [sum(f["valores"][i] for f in filas_out) for i in range(len(meses_con_datos))]
         resultado.append(
             {
                 "anio": a,
-                "meses": meses_abbr,
+                "meses": [_MESES_ABBR[m - 1] for m in meses_con_datos],
                 "filas": filas_out,
                 "totales": totales,
                 "total": sum(totales),
@@ -837,20 +929,19 @@ def get_transacciones_mes_anio(anio=None, mes=None, nombre=None):
 def get_total_por_anio(anio=None, mes=None, nombre=None):
     """Total acumulado de transacciones por asistente y año.
 
-    Las columnas son SIEMPRE los últimos 5 años (año actual y los 4 anteriores),
-    aunque algunos todavía no tengan datos (se muestran en 0). Así la tabla deja
-    espacio para comparar la evolución a medida que se cargan más años.
+    Las columnas son los años que tienen datos en el filtro (ascendente), así
+    la tabla no muestra columnas vacías ni descarta años antiguos.
 
     Devuelve un dict:
         {
-          "anios": [2022, 2023, 2024, 2025, 2026],
+          "anios": [2025, 2026],
           "filas": [{"nombre": ..., "valores": [...], "total": N}, ...],
           "totales": [...],
           "total": N
         }
     o None si no hay datos.
     """
-    where, params = _where(anio, mes, nombre)
+    where, params = _where(anio, mes, nombre, solo_con_asistente=True)
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -872,27 +963,19 @@ def get_total_por_anio(anio=None, mes=None, nombre=None):
     if not filas:
         return None
 
-    # Columnas fijas: últimos 5 años (incluye años sin datos, en 0).
-    anio_actual = datetime.now().year
-    anios = list(range(anio_actual - 4, anio_actual + 1))
+    anios = sorted({f["anio"] for f in filas})
     idx = {a: i for i, a in enumerate(anios)}
 
     por_nombre = {}
     for f in filas:
-        # Ignora datos fuera de la ventana de 5 años (por si hubiera años viejos).
-        if f["anio"] not in idx:
-            continue
         vals = por_nombre.setdefault(f["nombre"], [0] * len(anios))
         vals[idx[f["anio"]]] = int(f["ops"])
-
-    if not por_nombre:
-        return None
 
     filas_out = [
         {"nombre": nom, "valores": vals, "total": sum(vals)}
         for nom, vals in por_nombre.items()
     ]
-    filas_out.sort(key=lambda r: r["total"], reverse=True)
+    filas_out.sort(key=lambda r: (-r["total"], r["nombre"]))
     totales = [sum(por_nombre[nom][i] for nom in por_nombre) for i in range(len(anios))]
 
     return {
@@ -900,4 +983,202 @@ def get_total_por_anio(anio=None, mes=None, nombre=None):
         "filas": filas_out,
         "totales": totales,
         "total": sum(totales),
+    }
+
+
+# ---------------------------------------------------------------------------
+# RENDIMIENTO — evaluación de desempeño por asistente
+# ---------------------------------------------------------------------------
+#
+# La métrica principal es la CANTIDAD DE OPERACIONES. Para que la comparación
+# sea justa entre asistentes con distinta asistencia, todo se normaliza por
+# jornadas trabajadas:
+#
+#   - Prom./jornada      = transacciones ÷ jornadas en que operó.
+#   - Promedio del equipo = total de transacciones ÷ total de pares
+#                           (asistente, jornada). Es el "ritmo" medio por persona
+#                           y día.
+#   - Índice vs equipo    = prom./jornada del asistente ÷ promedio del equipo
+#                           × 100. 100 = igual al equipo.
+#   - Cobertura           = jornadas del asistente ÷ jornadas del periodo.
+#   - Constancia          = % de sus jornadas en que igualó o superó el
+#                           promedio del equipo.
+#   - Tendencia           = variación de sus transacciones entre los dos últimos
+#                           meses con datos del periodo.
+#
+# El monto, el ticket y el % de débito se muestran como contexto secundario.
+
+# Jornadas mínimas para entrar al ranking de promedio por jornada (evita que
+# alguien con un solo día destacado lidere la tabla).
+_MIN_JORNADAS_RANKING = 5
+
+
+def _mediana(valores):
+    if not valores:
+        return 0
+    v = sorted(valores)
+    n = len(v)
+    mitad = n // 2
+    return v[mitad] if n % 2 else (v[mitad - 1] + v[mitad]) / 2
+
+
+def get_rendimiento_asistentes(anio=None, mes=None, nombre=None):
+    """Evaluación de desempeño por asistente.
+
+    Devuelve un dict con:
+      - kpis:  {asistentes, jornadas_periodo, prom_por_asistente, mediana,
+                prom_equipo, lider, lider_prom, top3_pct, top1, top1_pct}
+      - filas: lista ordenada por transacciones (desc), cada una con las
+               métricas descritas en el encabezado de esta sección, ya
+               formateadas para la tabla, más `ops_raw` para los gráficos.
+      - totales: fila de pie {ops, jornadas, prom_jornada, monto, ticket, debito_pct}
+      - top_ops:  {labels, valores} Top 10 por transacciones
+      - top_prom: {labels, valores} Top 10 por prom./jornada (min. jornadas)
+      - min_jornadas: umbral usado en top_prom
+      - tendencia: {"mes_ref", "mes_prev"} o None si no hay dos meses
+    o None si no hay datos.
+    """
+    where, params = _where(anio, mes, nombre, solo_con_asistente=True)
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            base, por_jornada, _ = _consultar_por_asistente(cur, where, params)
+            if not base:
+                return None
+
+            cur.execute(
+                f"SELECT COUNT(DISTINCT jornada) AS n FROM {TABLE} {where}",
+                params,
+            )
+            jornadas_periodo = int((cur.fetchone() or {}).get("n") or 0)
+
+            # Operaciones por forma de pago (para % débito).
+            cur.execute(
+                f"""
+                SELECT slot_attendant AS nombre, forma_pago, COUNT(*) AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY slot_attendant, forma_pago
+                """,
+                params,
+            )
+            debito = {}
+            for f in cur.fetchall():
+                if es_debito(f["forma_pago"]):
+                    debito[f["nombre"]] = debito.get(f["nombre"], 0) + int(f["ops"])
+
+            # Operaciones por mes para la tendencia (dos últimos meses).
+            cur.execute(
+                f"""
+                SELECT slot_attendant AS nombre,
+                       DATE_TRUNC('month', jornada)::date AS mes,
+                       COUNT(*) AS ops
+                FROM {TABLE}
+                {where}
+                GROUP BY slot_attendant, mes
+                """,
+                params,
+            )
+            por_mes = {}
+            meses = set()
+            for f in cur.fetchall():
+                meses.add(f["mes"])
+                por_mes.setdefault(f["nombre"], {})[f["mes"]] = int(f["ops"])
+    finally:
+        conn.close()
+
+    total_ops = sum(int(b["total"]) for b in base.values())
+    total_monto = sum(int(b["monto"] or 0) for b in base.values())
+    total_pares = sum(len(j) for j in por_jornada.values())
+    prom_equipo = total_ops / total_pares if total_pares else 0
+
+    meses_orden = sorted(meses)
+    mes_ref = meses_orden[-1] if len(meses_orden) >= 2 else None
+    mes_prev = meses_orden[-2] if len(meses_orden) >= 2 else None
+
+    filas = []
+    for nom, b in base.items():
+        ops = int(b["total"])
+        monto = int(b["monto"] or 0)
+        jornadas = int(b["jornadas"] or 0)
+        prom = ops / jornadas if jornadas else 0
+        indice = prom * 100 / prom_equipo if prom_equipo else 0
+        mejor = _mejor_jornada(por_jornada.get(nom))
+        sobre_prom = sum(1 for j in por_jornada.get(nom, []) if j[1] >= prom_equipo)
+
+        tendencia = None
+        if mes_ref:
+            m = por_mes.get(nom, {})
+            tendencia = variacion(m.get(mes_ref, 0), m.get(mes_prev, 0))
+            if tendencia is None and m.get(mes_ref, 0) and not m.get(mes_prev, 0):
+                tendencia = {"pct": "nuevo", "dir": "flat"}
+
+        filas.append(
+            {
+                "nombre": nom,
+                "ops_raw": ops,
+                "prom_raw": round(prom, 1),
+                "jornadas_raw": jornadas,
+                "ops": miles(ops),
+                "pct_total": porcentaje(ops, total_ops),
+                "jornadas": miles(jornadas),
+                "cobertura": porcentaje(jornadas, jornadas_periodo, 0),
+                "prom_jornada": f"{prom:.1f}".replace(".", ","),
+                "indice": round(indice),
+                "constancia": porcentaje(sobre_prom, jornadas, 0),
+                "mejor_ops": mejor[1] if mejor else 0,
+                "tendencia": tendencia,
+                "monto": pesos(monto),
+                "ticket": pesos(round(monto / ops)) if ops else pesos(0),
+                "debito_pct": porcentaje(debito.get(nom, 0), ops, 0),
+            }
+        )
+    filas.sort(key=lambda r: (-r["ops_raw"], r["nombre"]))
+
+    # KPIs del equipo.
+    n_asist = len(filas)
+    ops_list = [f["ops_raw"] for f in filas]
+    lider = max(filas, key=lambda r: (r["prom_raw"], r["ops_raw"]))
+    top3 = sum(ops_list[:3])
+
+    min_jornadas = min(_MIN_JORNADAS_RANKING, jornadas_periodo) or 1
+    elegibles = [f for f in filas if f["jornadas_raw"] >= min_jornadas]
+    elegibles.sort(key=lambda r: (-r["prom_raw"], -r["ops_raw"], r["nombre"]))
+
+    total_debito = sum(debito.values())
+    return {
+        "kpis": {
+            "asistentes": miles(n_asist),
+            "jornadas_periodo": miles(jornadas_periodo),
+            "prom_por_asistente": miles(round(total_ops / n_asist)) if n_asist else "0",
+            "mediana": miles(round(_mediana(ops_list))),
+            "prom_equipo": f"{prom_equipo:.1f}".replace(".", ","),
+            "lider": lider["nombre"],
+            "lider_prom": lider["prom_jornada"],
+            "top3_pct": porcentaje(top3, total_ops),
+            "top1": filas[0]["nombre"],
+            "top1_pct": filas[0]["pct_total"],
+        },
+        "filas": filas,
+        "totales": {
+            "ops": miles(total_ops),
+            "jornadas": miles(jornadas_periodo),
+            "prom_jornada": f"{prom_equipo:.1f}".replace(".", ","),
+            "monto": pesos(total_monto),
+            "ticket": pesos(round(total_monto / total_ops)) if total_ops else pesos(0),
+            "debito_pct": porcentaje(total_debito, total_ops, 0),
+        },
+        "top_ops": {
+            "labels": [f["nombre"] for f in filas[:10]],
+            "valores": [f["ops_raw"] for f in filas[:10]],
+        },
+        "top_prom": {
+            "labels": [f["nombre"] for f in elegibles[:10]],
+            "valores": [f["prom_raw"] for f in elegibles[:10]],
+        },
+        "min_jornadas": min_jornadas,
+        "tendencia": (
+            {"mes_ref": mes_anio_es(mes_ref), "mes_prev": mes_anio_es(mes_prev)}
+            if mes_ref else None
+        ),
     }

@@ -193,14 +193,15 @@ operaciones **nuevas**, solo esas se agregan.
 
 ## 7. Dashboard de Getnet ✅ (terminado)
 
-Una vez que los datos están en la base de datos, el módulo **Getnet** ofrece tres
-vistas accesibles desde un sub-menú:
+Una vez que los datos están en la base de datos, el módulo **Getnet** ofrece cuatro
+vistas accesibles desde un sub-menú (`templates/getnet/_submenu.html`):
 
 | Vista | Ruta | Qué muestra |
 |---|---|---|
-| Dashboard | `/getnet` | KPIs + gráficos + mapa de calor |
-| Histórico | `/getnet/historico` | Tabla con todas las operaciones |
-| Record Asistentes | `/getnet/record` | Ranking de slot attendants |
+| Dashboard | `/getnet` | KPIs (con Δ vs mes anterior) + gráficos + mapa de calor |
+| Histórico | `/getnet/historico` | Resumen mensual (con Δ) y detalle por hora |
+| Record Asistentes | `/getnet/record-asistentes` | Lo operativo por persona: podio de records y conteos |
+| Rendimiento | `/getnet/rendimiento` | Evaluación por persona: promedio por jornada, índice vs equipo |
 
 ### 7.1 KPIs del Dashboard
 
@@ -287,15 +288,44 @@ todos los gráficos, KPIs y el mapa de calor se recalculan con el rango seleccio
 
 ## 9. Record Asistentes ✅ (terminado)
 
-Sección accesible desde el sub-menú de Getnet (`/getnet/record-asistentes`). Muestra
-el rendimiento histórico de cada slot attendant. Respeta todos los filtros del header.
+Sección accesible desde el sub-menú de Getnet (`/getnet/record-asistentes`). Es la
+vista **operativa** por slot attendant (records y conteos); la evaluación de
+desempeño vive aparte en Rendimiento (sección 9.1). Respeta todos los filtros del
+header y excluye las operaciones sin asistente asignado.
 
 | Bloque | Qué muestra |
 |---|---|
-| **Podio Top 3** | Asistentes con el mayor número de operaciones en una sola jornada (🥇🥈🥉 + tabla del resto) |
-| **Resumen por asistente** | Total de ops, ticket promedio, franja horaria más activa, mejor jornada |
-| **Transacciones por mes/año** | Una tabla por año con los 12 meses como columnas; asistentes como filas |
-| **Total acumulado por año** | Tabla asistente × año; siempre muestra las últimas 5 columnas (años sin datos = 0) |
+| **Podio Top 3** | Asistentes con el mayor número de operaciones en una sola jornada (🥇🥈🥉 + monto de esa jornada + tabla del resto) |
+| **Resumen por asistente** | Transacciones, jornadas, prom./jornada, franja horaria más activa, mejor jornada y fecha record; fila Total |
+| **Transacciones por mes/año** | Una tabla por año con los meses **que tienen datos** como columnas; ordenable y con buscador |
+| **Total acumulado por año** | Tabla asistente × año, solo con los años que tienen datos |
+
+Reglas de desempate (determinísticas, en `getnet_repository.py`): mejor jornada →
+más ops y luego la más reciente; franja top → más ops y luego la más temprana en
+el orden de Jornada; podio → más ops y luego quien lo logró primero. El podio se
+deriva del mismo resumen (`ordenar_por_record`) para no repetir consultas.
+
+Las celdas de fecha llevan `data-sort="aaaa-mm-dd"` para que `tables.js` las
+ordene cronológicamente.
+
+### 9.1 Rendimiento ✅
+
+Ruta `/getnet/rendimiento` (`get_rendimiento_asistentes`). Evalúa a cada asistente
+con la **cantidad de operaciones** como métrica principal, normalizada por jornadas
+trabajadas para comparar de forma justa:
+
+| Métrica | Cálculo |
+|---|---|
+| Prom./jornada | transacciones ÷ jornadas en que operó |
+| Promedio del equipo | total de transacciones ÷ pares (asistente, jornada) |
+| Índice vs equipo | prom./jornada ÷ promedio del equipo × 100 (verde ≥ 110, rojo < 90) |
+| Cobertura | jornadas del asistente ÷ jornadas del periodo |
+| Constancia | % de sus jornadas en que igualó o superó el promedio del equipo |
+| Tendencia | variación de sus transacciones entre los dos últimos meses del periodo |
+
+Incluye KPIs del equipo (asistentes, mediana, concentración Top 3), dos gráficos
+Top 10 (transacciones y prom./jornada con mínimo de 5 jornadas) y la tabla de
+evaluación ordenable. Monto, ticket y % débito aparecen como contexto secundario.
 
 Each block includes an `.info-note` legend explaining the calculation.
 

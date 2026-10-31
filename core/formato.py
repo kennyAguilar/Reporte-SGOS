@@ -64,3 +64,29 @@ def fecha_hora(dt):
     if not dt:
         return ""
     return dt.strftime("%d/%m/%Y %H:%M")
+
+
+def porcentaje(valor, total, decimales=1):
+    """Porcentaje con coma decimal: porcentaje(25, 200) -> '12,5%'."""
+    if not total:
+        return "0%"
+    pct = float(valor or 0) * 100 / float(total)
+    return f"{pct:.{decimales}f}%".replace(".", ",")
+
+
+def variacion(actual, anterior):
+    """Variación porcentual entre dos valores, lista para mostrar en la UI.
+
+    Devuelve un dict {"pct": "+12,3%", "dir": "up" | "down" | "flat"} o None si
+    no hay base de comparación (anterior nulo o cero).
+    """
+    if actual is None or not anterior:
+        return None
+    pct = (float(actual) - float(anterior)) * 100 / float(anterior)
+    if abs(pct) < 0.05:
+        direccion = "flat"
+    elif pct > 0:
+        direccion = "up"
+    else:
+        direccion = "down"
+    return {"pct": f"{pct:+.1f}%".replace(".", ","), "dir": direccion}

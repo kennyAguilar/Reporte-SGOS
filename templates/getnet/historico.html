@@ -18,15 +18,7 @@
   {% include "partials/_filters.html" with context %}
 
   <main class="dashboard-main">
-    {# Sub-menú del módulo Getnet #}
-    <nav class="submenu">
-      <a href="{{ url_for('getnet.dashboard') }}"
-         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
-      <a href="{{ url_for('getnet.historico') }}"
-         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
-      <a href="{{ url_for('getnet.record_asistentes') }}"
-         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
-    </nav>
+    {% include "getnet/_submenu.html" %}
 
     <div class="module-head">
       <div class="module-eyebrow">Getnet</div>
@@ -44,8 +36,9 @@
           ℹ️ <strong>¿Cómo se obtiene?</strong> Se agrupan todas las operaciones por
           el <em>mes de la jornada</em>. <strong>Operaciones</strong> = cantidad de
           transacciones del mes; <strong>Monto</strong> = suma de la columna Monto;
-          <strong>Ticket promedio</strong> = Monto ÷ Operaciones. Respeta los
-          filtros activos (año, mes, nombre).
+          <strong>Ticket promedio</strong> = Monto ÷ Operaciones.
+          <strong>Δ</strong> = variación porcentual respecto del mes anterior
+          (solo entre meses consecutivos). Respeta los filtros activos (año, mes, nombre).
         </div>
 
         {% if resumen_mensual %}
@@ -55,7 +48,9 @@
                 <tr>
                   <th>Mes</th>
                   <th class="num">Operaciones</th>
+                  <th class="num">Δ ops</th>
                   <th class="num">Monto</th>
+                  <th class="num">Δ monto</th>
                   <th class="num">Ticket promedio</th>
                 </tr>
               </thead>
@@ -64,7 +59,9 @@
                   <tr>
                     <td>{{ f.mes }}</td>
                     <td class="num">{{ f.ops }}</td>
+                    <td class="num delta {{ 'delta--' + f.delta_ops.dir if f.delta_ops else '' }}">{{ f.delta_ops.pct if f.delta_ops else '—' }}</td>
                     <td class="num">{{ f.monto }}</td>
+                    <td class="num delta {{ 'delta--' + f.delta_monto.dir if f.delta_monto else '' }}">{{ f.delta_monto.pct if f.delta_monto else '—' }}</td>
                     <td class="num">{{ f.ticket }}</td>
                   </tr>
                 {% endfor %}
@@ -73,7 +70,9 @@
                 <tr class="total-row">
                   <td>Total</td>
                   <td class="num total-col">{{ resumen_mensual.total_ops }}</td>
+                  <td></td>
                   <td class="num total-col">{{ resumen_mensual.total_monto }}</td>
+                  <td></td>
                   <td class="num total-col">{{ resumen_mensual.ticket }}</td>
                 </tr>
               </tfoot>
