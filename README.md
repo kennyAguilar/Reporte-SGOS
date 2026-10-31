@@ -153,9 +153,10 @@ La aplicación usa Neon.tech (PostgreSQL serverless). La tabla principal de usua
 | Getnet — Rendimiento (evaluación por asistente: prom./jornada, índice vs equipo, tendencia) | ✅ Implementado |
 | Configuración (gestión de asistentes y usuarios — solo admin) | ✅ Implementado |
 | Premios — Carga de Excel | ✅ Implementado |
-| Premios — Dashboard (KPIs + 5 gráficos + filtro por tipo de pago HP) | ✅ Implementado |
-| Premios — Histórico (resumen mensual, operaciones por hora, conteo anual) | ✅ Implementado |
+| Premios — Dashboard (KPIs con Δ mensual + 5 gráficos + filtro por tipo de pago HP) | ✅ Implementado |
+| Premios — Histórico (resumen mensual con Δ y ticket, operaciones por hora, conteo anual) | ✅ Implementado |
 | Premios — Record Asistentes (podio, resumen por tipo, transacciones, acumulado) | ✅ Implementado |
+| Premios — Rendimiento (evaluación por asistente: prom./jornada, índice vs equipo, tendencia) | ✅ Implementado |
 | COMPS | 📋 Pendiente |
 | CoinIn | 📋 Pendiente |
 

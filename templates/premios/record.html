@@ -18,22 +18,14 @@
   {% include "partials/_filters.html" with context %}
 
   <main class="dashboard-main">
-    {# Sub-menú del módulo Premios #}
-    <nav class="submenu">
-      <a href="{{ url_for('premios.dashboard') }}"
-         class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
-      <a href="{{ url_for('premios.historico') }}"
-         class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
-      <a href="{{ url_for('premios.record_asistentes') }}"
-         class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
-    </nav>
+    {% include "premios/_submenu.html" %}
 
     <div class="module-head">
       <div class="module-eyebrow">Premios</div>
       <h2>Record Asistentes</h2>
     </div>
 
-    {% if not podio and not resumen_asist %}
+    {% if not resumen_asist %}
       <div class="empty-state">No hay datos de asistentes para este filtro. Ajusta los filtros o carga un archivo.</div>
     {% else %}
 
@@ -43,43 +35,48 @@
         <div class="info-note">
           ℹ️ <strong>¿Qué mide?</strong> El mejor día de cada asistente: la jornada
           en la que pagó <em>más premios</em> (todos los tipos de pago). Se rankean
-          esos records de mayor a menor. Respeta los filtros activos (año, mes, nombre).
+          esos records de mayor a menor; en empate gana quien lo logró primero.
+          Respeta los filtros activos (año, mes, nombre). Para la evaluación de
+          desempeño ve a <a href="{{ url_for('premios.rendimiento') }}">Rendimiento</a>.
         </div>
 
-        {% if podio %}
-          {% set medallas = ['🥇', '🥈', '🥉'] %}
-          {% set clases = ['oro', 'plata', 'bronce'] %}
-          <div class="podium">
-            {% for p in podio %}
-              <div class="podium-card podium-card--{{ clases[loop.index0] }}">
-                <div class="podium-medal">{{ medallas[loop.index0] }}</div>
-                <div class="podium-name">{{ p.nombre }}</div>
-                <div class="podium-ops">{{ p.ops }}</div>
-                <div class="podium-label">transacciones</div>
-                <div class="podium-date">{{ p.fecha }}</div>
-              </div>
-            {% endfor %}
-          </div>
+        {% set medallas = ['🥇', '🥈', '🥉'] %}
+        {% set clases = ['oro', 'plata', 'bronce'] %}
+        <div class="podium">
+          {% for p in podio %}
+            <div class="podium-card podium-card--{{ clases[loop.index0] }}">
+              <div class="podium-medal">{{ medallas[loop.index0] }}</div>
+              <div class="podium-name">{{ p.nombre }}</div>
+              <div class="podium-ops">{{ p.mejor_ops }}</div>
+              <div class="podium-label">transacciones</div>
+              <div class="podium-date">{{ p.mejor_fecha }} · <span class="podium-monto">{{ p.mejor_monto }}</span> HP</div>
+            </div>
+          {% endfor %}
+        </div>
 
-          {% if record_resto %}
-            <table class="record-table sortable-table">
-              <thead>
-                <tr><th class="rank">#</th><th>Asistente</th><th class="num">Transacciones</th><th>Mejor jornada</th></tr>
-              </thead>
-              <tbody>
-                {% for r in record_resto %}
-                  <tr>
-                    <td class="rank">{{ loop.index + 3 }}</td>
-                    <td>{{ r.nombre }}</td>
-                    <td class="num">{{ r.ops }}</td>
-                    <td>{{ r.fecha }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          {% endif %}
-        {% else %}
-          <div class="empty-state">Sin datos.</div>
+        {% if record_resto %}
+          <table class="record-table sortable-table">
+            <thead>
+              <tr>
+                <th class="rank">#</th>
+                <th>Asistente</th>
+                <th class="num">Transacciones</th>
+                <th class="num">Monto HP de la jornada</th>
+                <th>Mejor jornada</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in record_resto %}
+                <tr>
+                  <td class="rank">{{ loop.index + 3 }}</td>
+                  <td>{{ r.nombre }}</td>
+                  <td class="num">{{ r.mejor_ops }}</td>
+                  <td class="num">{{ r.mejor_monto }}</td>
+                  <td data-sort="{{ r.mejor_fecha_iso }}">{{ r.mejor_fecha }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         {% endif %}
       </section>
 
@@ -89,52 +86,52 @@
         <div class="info-note">
           ℹ️ <strong>¿Qué incluye?</strong> El conteo de transacciones de cada
           asistente <em>por cada tipo de pago</em> (sin montos), su <em>Total</em>,
-          y su <em>Mejor jornada</em> (nº de transacciones y fecha record).
-          Ordenado por total (mayor a menor).
+          las <em>Jornadas</em> en que operó, su <em>Prom./jornada</em> y su
+          <em>Mejor jornada</em> (nº de transacciones y fecha record). Ordenado
+          por total (mayor a menor).
         </div>
 
-        {% if resumen_asist %}
-          <div class="heatmap-scroll">
-            <table class="record-table record-matrix sortable-table" data-buscador>
-              <thead>
+        <div class="heatmap-scroll">
+          <table class="record-table record-matrix sortable-table" data-buscador>
+            <thead>
+              <tr>
+                <th class="rank">#</th>
+                <th>Asistente</th>
+                {% for t in resumen_asist.tipos %}<th class="num">{{ t }}</th>{% endfor %}
+                <th class="num total-col">Total</th>
+                <th class="num">Jornadas</th>
+                <th class="num">Prom./jornada</th>
+                <th class="num">Mejor jornada</th>
+                <th>Fecha record</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in resumen_asist.filas %}
                 <tr>
-                  <th class="rank">#</th>
-                  <th>Asistente</th>
-                  {% for t in resumen_asist.tipos %}<th class="num">{{ t }}</th>{% endfor %}
-                  <th class="num total-col">Total</th>
-                  <th class="num">Mejor jornada</th>
-                  <th>Fecha record</th>
+                  <td class="rank">{{ loop.index }}</td>
+                  <td>{{ a.nombre }}</td>
+                  {% for v in a.valores %}
+                    <td class="num {{ 'zero' if v == 0 else '' }}" data-sort="{{ v }}">{{ v if v else '·' }}</td>
+                  {% endfor %}
+                  <td class="num total-col">{{ a.total }}</td>
+                  <td class="num">{{ a.jornadas }}</td>
+                  <td class="num">{{ a.prom_jornada }}</td>
+                  <td class="num">{{ a.mejor_ops }}</td>
+                  <td data-sort="{{ a.mejor_fecha_iso }}">{{ a.mejor_fecha }}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {% for a in resumen_asist.filas %}
-                  <tr>
-                    <td class="rank">{{ loop.index }}</td>
-                    <td>{{ a.nombre }}</td>
-                    {% for v in a.valores %}
-                      <td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>
-                    {% endfor %}
-                    <td class="num total-col">{{ a.total }}</td>
-                    <td class="num">{{ a.mejor_ops }}</td>
-                    <td>{{ a.mejor_fecha }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th></th>
-                  <th>Total</th>
-                  {% for t in resumen_asist.totales %}<td class="num">{{ t }}</td>{% endfor %}
-                  <td class="num total-col">{{ resumen_asist.total }}</td>
-                  <td class="num"></td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        {% else %}
-          <div class="empty-state">Sin datos.</div>
-        {% endif %}
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th></th>
+                <th>Total</th>
+                {% for t in resumen_asist.totales %}<td class="num">{{ t }}</td>{% endfor %}
+                <td class="num total-col">{{ resumen_asist.total }}</td>
+                <td colspan="4"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </section>
 
       {# === Bloque 3: Transacciones por mes, separadas por año === #}
@@ -142,8 +139,8 @@
         <h3>📅 Transacciones por mes (por año)</h3>
         <div class="info-note">
           ℹ️ <strong>¿Qué muestra?</strong> Las transacciones de cada asistente
-          mes a mes, con una tabla por año. La fila <em>Total</em> suma todos los
-          asistentes por mes.
+          mes a mes, con una tabla por año. Solo aparecen los meses con datos. La
+          fila <em>Total</em> suma todos los asistentes por mes.
         </div>
 
         {% if trans_mes %}
@@ -151,7 +148,7 @@
             <div class="record-year">
               <h4 class="record-year-head">{{ tabla.anio }} <span class="badge">{{ tabla.total }} transacciones</span></h4>
               <div class="heatmap-scroll">
-                <table class="record-table record-matrix">
+                <table class="record-table record-matrix sortable-table" {% if tabla.filas|length > 8 %}data-buscador{% endif %}>
                   <thead>
                     <tr>
                       <th>Asistente</th>
@@ -164,7 +161,7 @@
                       <tr>
                         <td>{{ fila.nombre }}</td>
                         {% for v in fila.valores %}
-                          <td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>
+                          <td class="num {{ 'zero' if v == 0 else '' }}" data-sort="{{ v }}">{{ v if v else '·' }}</td>
                         {% endfor %}
                         <td class="num total-col">{{ fila.total }}</td>
                       </tr>
@@ -191,8 +188,8 @@
         <h3>🗓️ Total acumulado por año</h3>
         <div class="info-note">
           ℹ️ <strong>¿Qué muestra?</strong> El total de transacciones de cada
-          asistente en cada año, para comparar su evolución. Ordenado por total
-          general (mayor a menor).
+          asistente en cada año con datos, para comparar su evolución. Ordenado
+          por total general (mayor a menor).
         </div>
 
         {% if total_anio %}
@@ -211,7 +208,7 @@
                   <tr>
                     <td class="rank">{{ loop.index }}</td>
                     <td>{{ fila.nombre }}</td>
-                    {% for v in fila.valores %}<td class="num {{ 'zero' if v == 0 else '' }}">{{ v if v else '·' }}</td>{% endfor %}
+                    {% for v in fila.valores %}<td class="num {{ 'zero' if v == 0 else '' }}" data-sort="{{ v }}">{{ v if v else '·' }}</td>{% endfor %}
                     <td class="num total-col">{{ fila.total }}</td>
                   </tr>
                 {% endfor %}

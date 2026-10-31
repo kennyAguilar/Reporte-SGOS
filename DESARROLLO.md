@@ -342,8 +342,9 @@ Ruta: `/configuracion`.
 | Usuarios | Ver la lista de usuarios y crear nuevos |
 | Contraseña | Cambiar la propia contraseña |
 
-Los asistentes inactivos se excluyen en todas las consultas gracias al filtro
-`_FILTRO_ACTIVOS` en `getnet_repository.py`.
+Los asistentes inactivos se excluyen en todas las consultas de Getnet **y Premios**
+gracias al filtro `_FILTRO_ACTIVOS` definido en cada repositorio. La lista de la
+pestaña Asistentes combina los nombres presentes en `getnet` ∪ `premios`.
 
 ---
 
@@ -418,17 +419,36 @@ periodo. La fila de la hora pico se resalta con `.pico-row` y un badge.
 ### 11.5 Record Asistentes de Premios (`/premios/record-asistentes`)
 
 Cinco bloques paralelos al Record de Getnet, pero adaptados a las particularidades
-de los premios:
+de los premios. Es la vista **operativa**; la evaluación vive en Rendimiento (11.6).
 
 | Bloque | Qué muestra |
 |---|---|
-| **Podio Top 3** | Los 3 asistentes con más premios en una sola jornada (🥇🥈🥉) |
-| **Resumen por asistente por tipo** | Columnas dinámicas: una por cada tipo de pago + mejor jornada con fecha |
-| **Transacciones por mes/año** | Tabla año × 12 meses por asistente |
-| **Total acumulado por año** | Asistente × año (últimas 5 columnas) |
-| **Distribución por tipo** | Donut de operaciones por tipo de pago |
+| **Podio Top 3** | Los 3 asistentes con más premios en una sola jornada (🥇🥈🥉) + monto HP de esa jornada |
+| **Resumen por asistente por tipo** | Columnas dinámicas: una por cada tipo de pago + Total, Jornadas, Prom./jornada y mejor jornada con fecha |
+| **Transacciones por mes/año** | Tabla año × meses **con datos** por asistente; ordenable y con buscador |
+| **Total acumulado por año** | Asistente × año, solo con los años que tienen datos |
+| **Distribución por tipo** | Barras de operaciones por tipo de pago |
 
-Solo aparecen filas donde `slot_attendant IS NOT NULL AND TRIM(slot_attendant) <> ''`.
+Solo aparecen filas con asistente asignado (`_FILTRO_CON_ASISTENTE`) y activo en
+Configuración. Los desempates son deterministas (misma regla que Getnet, sección 9):
+mejor jornada → más ops y luego la más reciente; podio → quien lo logró primero.
+El podio se deriva del mismo resumen (`ordenar_por_record`), sin consulta extra.
+
+### 11.6 Rendimiento de Premios (`/premios/rendimiento`)
+
+Mismo modelo que Getnet (sección 9.1, `get_rendimiento_asistentes`), con la
+**cantidad de transacciones de todos los tipos de pago** como métrica principal:
+el asistente atiende igual un Jackpot HP que cualquier otro pago. Como contexto
+secundario muestra el **% HP** (parte de sus transacciones que fueron premios
+Jackpot HP / Progressive Jackpot HP) y el **monto HP** pagado.
+
+### 11.7 Deltas y selector de año
+
+- Dashboard: KPIs Operaciones (todos los tipos) y Monto (solo HP) muestran la
+  variación del último mes con datos contra el mes calendario anterior.
+- Histórico: el resumen mensual (solo HP) agrega Δ ops, Δ monto y Ticket promedio.
+- El selector de Año ofrece solo los años con premios cargados
+  (`get_anios_disponibles`).
 
 ---
 

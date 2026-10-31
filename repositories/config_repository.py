@@ -82,26 +82,33 @@ def ensure_schema():
 # Slots activos
 # ---------------------------------------------------------------------------
 def list_slot_attendants():
-    """Lista todos los slot attendants de getnet con su estado y nº de operaciones.
+    """Lista todos los slot attendants (Getnet ∪ Premios) con su estado y nº de operaciones.
 
     Devuelve una lista de dicts: {nombre, activo, operaciones}, ordenada por
-    nombre. Un attendant sin registro en slot_attendants se reporta como activo.
+    nombre. `operaciones` suma ambas tablas. Un attendant sin registro en
+    slot_attendants se reporta como activo. Si la tabla `premios` aún no
+    existe, se usa solo Getnet.
     """
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            cur.execute("SELECT to_regclass('public.premios') IS NOT NULL AS existe")
+            hay_premios = bool((cur.fetchone() or {}).get("existe"))
+            fuentes = "SELECT slot_attendant FROM getnet"
+            if hay_premios:
+                fuentes += " UNION ALL SELECT slot_attendant FROM premios"
             cur.execute(
-                """
-                SELECT g.slot_attendant                     AS nombre,
+                f"""
+                SELECT u.slot_attendant                     AS nombre,
                        COALESCE(sa.activo, true)            AS activo,
                        COUNT(*)                              AS operaciones
-                FROM getnet g
+                FROM ({fuentes}) u
                 LEFT JOIN slot_attendants sa
-                       ON sa.nombre = g.slot_attendant
-                WHERE g.slot_attendant IS NOT NULL
-                  AND g.slot_attendant <> ''
-                GROUP BY g.slot_attendant, sa.activo
-                ORDER BY g.slot_attendant
+                       ON sa.nombre = u.slot_attendant
+                WHERE u.slot_attendant IS NOT NULL
+                  AND u.slot_attendant <> ''
+                GROUP BY u.slot_attendant, sa.activo
+                ORDER BY u.slot_attendant
                 """
             )
             return [dict(r) for r in cur.fetchall()]

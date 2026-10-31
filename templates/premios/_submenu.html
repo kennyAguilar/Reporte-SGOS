@@ -1,0 +1,12 @@
+{# Sub-menú del módulo Premios. Variable esperada: seccion
+   ("dashboard" | "historico" | "record" | "rendimiento"). #}
+<nav class="submenu">
+  <a href="{{ url_for('premios.dashboard') }}"
+     class="{{ 'active' if seccion == 'dashboard' else '' }}">Dashboard</a>
+  <a href="{{ url_for('premios.historico') }}"
+     class="{{ 'active' if seccion == 'historico' else '' }}">Histórico</a>
+  <a href="{{ url_for('premios.record_asistentes') }}"
+     class="{{ 'active' if seccion == 'record' else '' }}">Record Asistentes</a>
+  <a href="{{ url_for('premios.rendimiento') }}"
+     class="{{ 'active' if seccion == 'rendimiento' else '' }}">Rendimiento</a>
+</nav>

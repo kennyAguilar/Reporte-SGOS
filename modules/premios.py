@@ -1,7 +1,11 @@
-"""Módulo Premios — sub-menú Dashboard | Histórico | Record Asistentes.
+"""Módulo Premios — sub-menú Dashboard | Histórico | Record Asistentes | Rendimiento.
 
-Por ahora solo el Dashboard está implementado. Histórico y Record Asistentes
-quedan como vistas placeholder, listas para construir más adelante.
+- Dashboard:         KPIs + gráficos por mes, por hora y mapa de calor.
+- Histórico:         resumen mensual, detalle por hora y conteo máquina × tipo.
+- Record Asistentes: lo OPERATIVO por persona (podio de records, conteos por
+                     tipo de pago, mes y año).
+- Rendimiento:       la EVALUACIÓN por persona (promedio por jornada, índice
+                     vs equipo, cobertura, constancia, tendencia).
 
 Esta página fija `active="premios"`, de modo que el header sabe en qué módulo
 estás y el botón "Cargar Excel" apunta a la carga de Premios (/upload/premios).
@@ -35,14 +39,23 @@ def _safe(func, *args, **kwargs):
 
 
 def _contexto_filtros():
-    """Lee los filtros de la URL y arma el contexto común de las vistas Premios."""
+    """Lee los filtros de la URL y arma el contexto común de las vistas Premios.
+
+    El selector de año ofrece los años que realmente tienen datos; si la base
+    aún está vacía (o falla), cae a los últimos 6 años como antes.
+    """
     anio = request.args.get("anio") or None
     mes = request.args.get("mes") or None
     nombre = (request.args.get("nombre") or "").strip() or None
     filas_totales = request.args.get("filas_totales") == "on"
 
-    anio_actual = datetime.now().year
-    anios = list(range(anio_actual, anio_actual - 6, -1))
+    anios = _safe(premios_repository.get_anios_disponibles) or []
+    if not anios:
+        anio_actual = datetime.now().year
+        anios = list(range(anio_actual, anio_actual - 6, -1))
+    # Mantiene visible un año pedido por URL aunque no tenga datos.
+    if anio and anio.isdigit() and int(anio) not in anios:
+        anios = sorted(anios + [int(anio)], reverse=True)
 
     filtros = {
         "anio": anio,
@@ -59,7 +72,6 @@ def dashboard():
     """Dashboard de Premios: KPIs + gráficos por mes, por hora y mapa de calor."""
     anio, mes, nombre, filtros, anios = _contexto_filtros()
 
-    resumen = _safe(premios_repository.get_resumen, anio, mes, nombre)
     kpis = _safe(premios_repository.get_kpis_dashboard, anio, mes, nombre)
     ops_mes = _safe(premios_repository.get_operaciones_por_mes, anio, mes, nombre)
     montos_mes = _safe(premios_repository.get_montos_por_mes, anio, mes, nombre)
@@ -72,7 +84,6 @@ def dashboard():
         user=current_user(),
         active="premios",
         seccion="dashboard",
-        resumen=resumen,
         kpis=kpis,
         ops_mes=ops_mes,
         montos_mes=montos_mes,
@@ -118,8 +129,9 @@ def record_asistentes():
     anio, mes, nombre, filtros, anios = _contexto_filtros()
     ultimo_archivo = _safe(upload_repository.get_ultimo_archivo, "premios")
 
-    record = _safe(premios_repository.get_record_jornadas, anio, mes, nombre) or []
     resumen_asist = _safe(premios_repository.get_resumen_asistentes_tipos, anio, mes, nombre)
+    # El podio sale del mismo resumen: una sola pasada por la tabla.
+    record = premios_repository.ordenar_por_record(resumen_asist["filas"]) if resumen_asist else []
     trans_mes = _safe(premios_repository.get_transacciones_mes_anio, anio, mes, nombre) or []
     total_anio = _safe(premios_repository.get_total_por_anio, anio, mes, nombre)
     distribucion = _safe(premios_repository.get_distribucion_tipos, anio, mes, nombre)
@@ -135,6 +147,28 @@ def record_asistentes():
         trans_mes=trans_mes,
         total_anio=total_anio,
         distribucion=distribucion,
+        ultimo_archivo=ultimo_archivo,
+        filtros=filtros,
+        anios=anios,
+        meses=MESES,
+    )
+
+
+@premios_bp.route("/rendimiento")
+@login_required
+def rendimiento():
+    """Evaluación de desempeño por asistente (transacciones normalizadas por jornada)."""
+    anio, mes, nombre, filtros, anios = _contexto_filtros()
+    ultimo_archivo = _safe(upload_repository.get_ultimo_archivo, "premios")
+
+    rendimiento = _safe(premios_repository.get_rendimiento_asistentes, anio, mes, nombre)
+
+    return render_template(
+        "premios/rendimiento.html",
+        user=current_user(),
+        active="premios",
+        seccion="rendimiento",
+        rendimiento=rendimiento,
         ultimo_archivo=ultimo_archivo,
         filtros=filtros,
         anios=anios,
